@@ -1,0 +1,14 @@
+{
+  "name": "codex-app-mods",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "verify:model-spread": "bun mods/model-spread/verify-mod.mjs",
+    "prepare:model-spread": "bun mods/model-spread/prepare-mod.mjs"
+  },
+  "devDependencies": {
+    "react": "19.2.8",
+    "react-test-renderer": "19.2.8"
+  }
+}

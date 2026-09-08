@@ -1,0 +1,17 @@
+node_modules/
+.agents/worklog.md
+.DS_Store
+*.app/
+*.zip
+*.asar
+*.dmg
+*.pkg
+*.log
+*.p12
+*.pfx
+.env
+.env.*
+work/
+dist/
+**/bundles/
+**/overlay/

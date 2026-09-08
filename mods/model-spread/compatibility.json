@@ -1,0 +1,11 @@
+{
+  "version": "26.901.51231",
+  "build": "8109",
+  "files": {
+    "app-initial-cadb12d4a15e.js": "73594359b28d81b6fcc9a52aac808f6a2e9fc32ced661adb3e23d297827b9285",
+    "app-primary-6cd7b8b3f5e3.js": "35d81a22c75f5a44b58baee0c0045ba6bb36cc9b387f43fab82178b4a2236849",
+    "agent-settings-f616ea91c7a2.js": "bf2aaf783944188c116d0e310852bed935d7c6872a9090923d17359cc666344f",
+    "codex-micro-settings-2d77d67699cb.js": "e1de7faa1baca7873513824ea4e4298837dd3631d21eb4cf3ee7158fa8cea794",
+    "codex-micro-bridge-757becea5c3f.js": "e1d0c6735f800771786f74cc358709fae55ebcf2df497389945d8ea821dc7cb5"
+  }
+}
