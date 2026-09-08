@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "codex-app-mods",
+      "name": "modex",
       "devDependencies": {
         "react": "19.2.8",
         "react-test-renderer": "19.2.8",

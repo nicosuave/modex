@@ -10,7 +10,7 @@ import {readArchive,readEntry} from '../../lib/asar.mjs';
 
 const here=path.dirname(fileURLToPath(import.meta.url));
 const mod=JSON.parse(fs.readFileSync(path.join(here,'mod.json'),'utf8'));
-export const HELP=`Usage: bun prepare-mod.mjs --output /absolute/path/Model-Spread.app [options]
+export const HELP=`Usage: bun prepare-mod.mjs --output /absolute/path/Modex.app [options]
 
   --source /Applications/ChatGPT.app   Original app (default shown)
   --output /absolute/path/Name.app    Required NEW second copy outside Applications
@@ -123,7 +123,7 @@ export async function main(args=process.argv.slice(2)) {
   if(fs.existsSync(output))throw Error(`Output already exists: ${output}`);
   if(contained(source,output)||contained(output,source))throw Error('Output must be separate from the original app');
   if(contained('/Applications',output)||contained(path.join(os.homedir(),'Applications'),output))throw Error('Output must be outside Applications');
-  validateAppIdentity(mod.name,mod.bundleId);
+  validateAppIdentity(mod.appName,mod.bundleId);
   const signer=signingIdentity();
   const manifest=JSON.parse(fs.readFileSync(path.join(here,'compatibility.json'),'utf8'));
   const {info,archive,bundles}=inspectCompatibility(source,manifest);
@@ -162,7 +162,7 @@ export async function main(args=process.argv.slice(2)) {
     for(const [name,bytes]of bundles)fs.writeFileSync(path.join(input,name),bytes);
     await run(process.execPath,[path.join(here,'build-mod.mjs'),input,overlay],{inherit:true});
     if(await hashFile(path.join(source,'Contents/Resources/app.asar'))!==evidence.sourceAsarHash)throw Error('Original app changed during preparation; rerun against its new version');
-    await run(process.execPath,[path.join(here,'../../lib/package-app.mjs'),'--source',source,'--overlay',path.join(temporary,'overlay'),'--output',output,'--app-name',mod.name,'--bundle-id',mod.bundleId],{inherit:true});
+    await run(process.execPath,[path.join(here,'../../lib/package-app.mjs'),'--source',source,'--overlay',path.join(temporary,'overlay'),'--output',output,'--app-name',mod.appName,'--bundle-id',mod.bundleId],{inherit:true});
     if(await hashFile(path.join(source,'Contents/Resources/app.asar'))!==evidence.sourceAsarHash)throw Error('Original app changed during packaging; staged copy needs review');
 
     console.log(JSON.stringify({source,output,signer:signer.name,backup,...evidence,secondCopyCreated:true,originalModified:false,launched:false},null,2));

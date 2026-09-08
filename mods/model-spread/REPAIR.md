@@ -2,16 +2,7 @@
 
 Load this when deterministic verification or runtime behavior fails. Fix the smallest source-backed surface and rerun verification; a green hash gate alone is insufficient.
 
-## Classify first
-
-- Tool/dependency failure: inspect the actual error and use the lockfile. Missing Bun or OS permission may need user action, not patch changes.
-- Signature/integrity failure: confirm the source is pristine stock, not a modified copy. Do not bless damaged input or disable checks.
-- Version/hash failure: follow the compatibility adaptation below.
-- Missing/duplicate anchor, syntax/import/test failure: inspect the owning adapter, surrounding implementation, and callers. Minified names have no stable meaning across builds.
-- Existing output/backup: preserve it; choose a new output. Reuse backups only through helper verification.
-- Packaging/signing failure: inspect subprocess errors, destination permissions, disk space, and entitlements. Preserve nested vendor signatures and identity-entitlement removal. Do not disable Electron fuses, SIP, or Gatekeeper.
-- Input Monitoring denial despite an enabled switch: inspect the actual signed app identity and stored macOS code requirement. Authorize the modded app itself, not an old launcher; preserve the mod bundle ID and certificate team across updates. Never reset unrelated app permissions.
-- Runtime failure: inspect the second copy's logs/renderer errors and native import exports. Use an isolated profile before blaming user settings. Do not reset profiles or copy authentication files as a fix.
+Start with the [shared repair guide](../../REPAIR.md) for environment, source integrity, packaging, signing, permissions, and profile failures. The sections below cover Model Spread adaptation and native behavior.
 
 ## Adapt a new build
 

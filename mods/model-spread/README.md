@@ -2,7 +2,7 @@
 
 A Codex app mod with an ordered list of model + reasoning pairs shared by the composer slider and the Codex Micro knob.
 
-Supported stock app: **26.901.51231 (8109)**. `compatibility.json` owns the exact source hashes; `mod.json` owns the app name and stable bundle ID.
+Supported stock app: **26.901.51231 (8109)**. `compatibility.json` owns the exact source hashes; `mod.json` keeps the feature name **Model Spread** separate from the app name **Modex**, and owns its stable bundle ID.
 
 ## Features
 
@@ -20,8 +20,8 @@ Run these commands from the repository root:
 ```sh
 bun install --frozen-lockfile
 bun run verify:model-spread
-bun run prepare:model-spread --check --output "$HOME/Codex-Mods/Model Spread.app"
-bun run prepare:model-spread --output "$HOME/Codex-Mods/Model Spread.app"
+bun run prepare:model-spread --check --output "$HOME/Codex-Mods/Modex.app"
+bun run prepare:model-spread --output "$HOME/Codex-Mods/Modex.app"
 ```
 
 An installed Developer ID Application certificate is required for packaging. Select it with `CODEX_MODS_SIGN_IDENTITY` if necessary; see the [root README](../../README.md). The stock app is preserved and a full original-app ZIP is verified before packaging. Existing app outputs are refused. To reuse a matching backup, pass its path with `--backup`.
@@ -30,13 +30,13 @@ An unknown version/hash stops before producing the app. For updates, follow [REP
 
 ## Install and launch
 
-Quit the running Codex copy, then move the staged **Model Spread.app** into `~/Applications`. If an older copy is already there, preserve it outside Applications before installing the replacement. Pin **Model Spread.app itself** in the Dock. No launcher app, command file, or terminal window is needed.
+Quit the running Codex copy, then move the staged **Modex.app** into `~/Applications`. If an older copy is already there, preserve it outside Applications before installing the replacement. Pin **Modex.app itself** in the Dock. No launcher app, command file, or terminal window is needed.
 
 The signed app has bundle ID `local.codex.model-spread`, retains the native icon, and uses `~/.codex` and `~/Library/Application Support/Codex` through its Launch Services environment. These paths are resolved on the machine that builds it. Do not distribute the resulting app as a portable binary; rebuild from source on the destination machine.
 
-This normal profile preserves existing chats, accounts, settings, and the saved spread. Do not run stock and modded copies against the same profile simultaneously. To return to stock, quit Model Spread and open the unmodified original app.
+This normal profile preserves existing chats, accounts, settings, and the saved spread. Do not run stock and modded copies against the same profile simultaneously. To return to stock, quit Modex and open the unmodified original app.
 
-For Codex Micro, grant Input Monitoring to **Model Spread.app** in System Settings → Privacy & Security, then relaunch it if macOS requests. An enabled grant for **Model Spread Launcher** or **ChatGPT** is a different app identity. Check the Micro connection, key presses, and knob after migration.
+For Codex Micro, grant Input Monitoring to **Modex.app** in System Settings → Privacy & Security, then relaunch it if macOS requests. An enabled grant for **Model Spread Launcher** or **ChatGPT** is a different app identity. Check the Micro connection, key presses, and knob after migration.
 
 Future mod builds keep the same bundle ID and Developer ID team. The signing tests demonstrate that changed app contents still satisfy the same designated requirement. Do not replace that signature with an ad-hoc signature to work around a packaging failure.
 
@@ -52,7 +52,7 @@ For a separate persistent test profile, invoke the executable with an explicit e
 mkdir -p "$HOME/Codex-Mods/test-profile" "$HOME/Codex-Mods/test-codex-home"
 CODEX_HOME="$HOME/Codex-Mods/test-codex-home" \
 CODEX_ELECTRON_USER_DATA_PATH="$HOME/Codex-Mods/test-profile" \
-  "$HOME/Codex-Mods/Model Spread.app/Contents/MacOS/ChatGPT" \
+  "$HOME/Codex-Mods/Modex.app/Contents/MacOS/ChatGPT" \
   --user-data-dir="$HOME/Codex-Mods/test-profile"
 ```
 
