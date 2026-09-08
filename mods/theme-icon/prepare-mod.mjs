@@ -15,7 +15,7 @@ export const HELP=`Usage: bun prepare-mod.mjs --output /absolute/path/Modex.app 
   --help                            Show this help
 
 One command: verify the stock app and exact supported bundle hashes, create and
-verify a full original-app ZIP, extract the five required bundles to temporary
+verify a full original-app ZIP, extract the required bundles to temporary
 scratch space, build the overlay, and package/sign a NEW second app copy.
 The signed app launches directly from the Dock; no separate launcher is created.
 The default backup is beside --output, named Original-<version>-<build>.zip.
@@ -27,14 +27,14 @@ app updates stop before creating a backup or output; the compatibility manifest
 and bundle transformations must be reviewed for each new app version.
 
 The second copy uses your installed Developer ID Application certificate and a stable
-local.codex.model-spread identity. It is not vendor-signed or notarized. Vendor keychain,
+local.codex.theme-icon identity. It is not vendor-signed or notarized. Vendor keychain,
 app-group and push identity entitlements are removed by package-app.mjs; existing
 authentication and macOS permissions are not guaranteed. This command does not
 switch your running app. Review the packaged result before choosing to launch it.
 `;
 
 export function main(args=process.argv.slice(2)) {
-  return prepareMain(args,{modDirectory:here,overlayAtRoot:false,help:HELP});
+  return prepareMain(args,{modDirectory:here,overlayAtRoot:true,help:HELP});
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
   main().catch(error=>{console.error(error.stderr?.toString()||error.message);process.exitCode=1;});

@@ -1,0 +1,13 @@
+{
+  "version": "26.901.51231",
+  "build": "8109",
+  "files": {
+    ".vite/build/main-BT6ViFC-.js": "ff6dac303dd188bddfdbfbfa43d0b04507dcf5136b773114970d73f9c2a9af01",
+    "webview/assets/app-initial-cadb12d4a15e.js": "73594359b28d81b6fcc9a52aac808f6a2e9fc32ced661adb3e23d297827b9285",
+    "webview/assets/general-settings-97f7ff015963.js": "6e323fbec11c5076e1dc03d1a878559e37dc65583c15957b6ffec610d6d8b2c4"
+  },
+  "resources": {
+    "icon-codex-dark-color.png": "69fb4384e161be8a20dcb94a9ac34aea4fbfaeb67514110a71e7b0732eccb0fc",
+    "icon-codex-light.png": "de7d43f3386105ab20952958c2c25beb0d903e2aeb6e1aef57c49a648c0d1c07"
+  }
+}

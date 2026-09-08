@@ -4,6 +4,8 @@ When asked to install or adapt Modex, carry the task through verification and cr
 
 ## Installation and preservation
 
+Before packaging an update, compare the intended identity against the user's installed mod, not only the stock source or selected mod's defaults. Changing enabled mods does not justify changing the installed app's bundle ID or signing team. For an intentionally separate app, explain its separate macOS permission grants before adoption. Read [permission continuity](REPAIR.md#macos-permission-continuity) when choosing an identity or diagnosing native access.
+
 1. Read the scripts, inspect the installed source app, and confirm macOS/Bun. Install dependencies from the lockfile and run the selected mod's verifier before packaging.
 2. Run preparation with `--check`, a supported source, and a new absolute output path outside Applications; then prepare the full copy. Verify the original-app backup before reuse through explicit `--backup`. Preserve existing outputs and choose a new descriptive path for another attempt.
 3. Create one directly signed Modex.app and pin that actual app in the Dock, never a separate launcher. Keep the existing mod bundle ID and Developer ID team across updates, including display-name changes. Verify the certificate designated requirement and normal-profile Launch Services environment. Never fall back to ad-hoc signing.
@@ -11,6 +13,8 @@ When asked to install or adapt Modex, carry the task through verification and cr
 5. Launch when requested or implied. Respect the user's profile choice; default verification launches to an isolated persistent profile. Before sharing a profile, ensure other copies are quit. Do not run pointer/knob tests during the user's manual testing.
 
 ## Development and repair
+
+- For new settings controls, reuse the existing Codex components and the adapters established in Model Spread. Inspect the matching stock call site and its initialization contract. Do not substitute HTML selects or hand-styled menus for Codex dropdowns. Distinguish source changes from the packaged version the user is running.
 
 - Keep mod transforms, compatibility manifests, adapters, and behavioral tests scoped under `mods/`. Reuse `lib/` for shared archive, packaging, and signing behavior.
 - Retain exact compatibility gates and unique replacement checks. Never bypass failures, loosen hashes, skip failing tests, or change hashes alone to accept unknown code.
