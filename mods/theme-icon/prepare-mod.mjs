@@ -2,6 +2,7 @@
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {prepareMain} from '../../lib/prepare-mod.mjs';
+import {legacyMarkers} from '../combined/compatibility.mjs';
 export {hashFile,parseArgs,inspectCompatibility,verifyBackup} from '../../lib/prepare-mod.mjs';
 
 const here=path.dirname(fileURLToPath(import.meta.url));
@@ -34,7 +35,7 @@ switch your running app. Review the packaged result before choosing to launch it
 `;
 
 export function main(args=process.argv.slice(2)) {
-  return prepareMain(args,{modDirectory:here,overlayAtRoot:true,help:HELP});
+  return prepareMain(args,{modDirectory:here,overlayAtRoot:true,help:HELP,legacyMarkers});
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
   main().catch(error=>{console.error(error.stderr?.toString()||error.message);process.exitCode=1;});

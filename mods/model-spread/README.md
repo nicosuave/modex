@@ -15,6 +15,10 @@ Supported stock app: **26.901.51231 (8109)**. `compatibility.json` owns the exac
 
 ## Build
 
+For **both Model Spread and Theme Icon in one app**, use the default `bun run modex verify`
+and `bun run modex prepare` commands in the [root README](../../README.md). The commands
+below intentionally build Model Spread only.
+
 Run these commands from the repository root:
 
 ```sh

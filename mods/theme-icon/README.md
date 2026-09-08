@@ -51,8 +51,9 @@ matching full original-app ZIP. Existing output apps and backups are preserved.
 Packaging requires an installed Developer ID Application certificate. See the
 [root README](../../README.md) for certificate selection and stable identity rules.
 
-This builds a separate Theme Icon app. It does not include Model Spread;
-composition of multiple mods is not implemented.
+These standalone commands build Theme Icon only. For **both Theme Icon and
+Model Spread in one app**, use the default `bun run modex verify` and `bun run modex prepare`
+commands in the [root README](../../README.md).
 Its identity and macOS permission grants are separate from Model Spread even
 though both display as Modex. These commands do not perform an identity-preserving
 upgrade of another mod; follow the shared
