@@ -1,80 +1,152 @@
 # Modex
 
-**Modex** is the locally built, modded Codex app. This repository contains source-only mods for it, with shared tools for inspecting ASAR archives, packaging a separate app, and signing it consistently across updates.
+Build **Modex.app**, a local copy of Codex with **both Model Spread and Theme Icon enabled by default**. The original Codex app stays unchanged.
 
-## Mods
+| Mod | What you get |
+| --- | --- |
+| [Model Spread](mods/model-spread/README.md) | Editable model/reasoning slots shared by the composer slider and Codex Micro knob |
+| [Theme Icon](mods/theme-icon/README.md) | A Dock icon that follows your theme, with color and background choices in Appearance settings |
 
-| Mod | What it does | Supported stock build |
-| --- | --- | --- |
-| [Model Spread](mods/model-spread/README.md) | Configurable model/reasoning slots shared by the composer slider and Codex Micro knob | 26.901.51231 (8109) |
-| [Theme Icon](mods/theme-icon/README.md) | Automatic theme-colored Codex Dock icon with per-theme Appearance variants | 26.901.51231 (8109) |
+You can also [choose a single mod](#choose-mods). This repository contains the build tools and mod source; you build the app on the Mac where you will use it.
 
-Each mod owns its transforms, compatibility checks, native adapters, and behavioral tests. Mods currently build separate app copies; combining multiple mods into one app is not implemented.
+## Prerequisites
 
-## Get started
+- macOS and [Bun](https://bun.sh).
+- An unmodified stock Codex app, version **26.901.51231 (8109)**. Other builds fail compatibility checks.
+- A **Developer ID Application** signing certificate with its private key available in Keychain. Preparation requires this certificate; ad-hoc signing is not supported.
 
-Requires macOS, [Bun](https://bun.sh), the supported stock Codex app, and an installed **Developer ID Application** certificate with its private key available in Keychain. Packaging refuses ad-hoc signing because changing build hashes can invalidate macOS permissions.
+The commands below use `/Applications/ChatGPT.app` as the stock source. If yours is elsewhere, add `--source "/absolute/path/to/ChatGPT.app"` to every `verify` and `prepare` command. The source must be stock Codex, not an existing Modex build.
+
+If you have multiple Developer ID Application certificates, select one **before preparing the app**:
+
+```sh
+export CODEX_MODS_SIGN_IDENTITY='Developer ID Application: Your Name (TEAMID)'
+```
+
+Use the exact name of your installed certificate. With exactly one available certificate, selection is automatic. Keep the same certificate team when updating an existing Modex installation.
+
+## First build
+
+If you already use Modex, follow [Update Modex](#update-modex) instead so the new build retains its identity.
 
 ```sh
 git clone https://github.com/nicosuave/modex.git
 cd modex
 bun install --frozen-lockfile
-bun run verify:model-spread
-bun run prepare:model-spread --check --output "$HOME/Codex-Mods/Modex.app"
-bun run prepare:model-spread --output "$HOME/Codex-Mods/Modex.app"
+bun run modex verify
+bun run modex prepare --check --output "$HOME/Codex-Mods/first-build/Modex.app"
+bun run modex prepare --output "$HOME/Codex-Mods/first-build/Modex.app"
 ```
 
-The default stock path is `/Applications/ChatGPT.app`; pass `--source /path/to/your/app` when needed. The preparation command verifies the stock signature and exact supported bundle hashes, creates and verifies a full backup ZIP, then builds a new app. Existing output apps are never overwritten. Reuse an existing backup only with an explicit `--backup /path/to/original.zip`.
+These commands verify **both mods**, check the preparation inputs without writing, then create a signed app at `~/Codex-Mods/first-build/Modex.app`. Preparation also creates and verifies a full stock-app backup beside it: `Original-26.901.51231-8109.zip`.
 
-After packaging, quit the active Codex copy and move the staged **Modex.app** into `~/Applications`. Pin that actual app in the Dock. **There is no separate launcher.** See the [mod instructions](mods/model-spread/README.md) for installation, profiles, and Micro permission verification.
+Preparation does not install or launch the app. Output paths must be new, absolute `.app` paths outside Applications. Existing apps and backups are never overwritten. For another attempt, choose a new staging directory; to reuse a backup, pass `--backup` explicitly as shown in the update workflow below.
 
-If several signing identities are installed, select one explicitly:
+## Install and open
+
+1. Quit the running Codex or Modex app when you are ready to switch. Do not stop a copy that still has active work.
+2. If `~/Applications/Modex.app` already exists, preserve it in a separate folder outside Applications before replacing it.
+3. Move the staged `Modex.app` into `~/Applications` (create that folder if needed).
+4. Open `~/Applications/Modex.app` and pin that actual app in the Dock.
+
+Modex uses your normal `~/.codex` and `~/Library/Application Support/Codex` profile paths. Do not run another Codex or Modex copy against that same profile simultaneously. For a separate test profile, follow the [isolated launch instructions](mods/model-spread/README.md#isolated-verification), substituting your staged app path.
+
+If you use Codex Micro, grant **Modex.app** Input Monitoring access in System Settings → Privacy & Security, then relaunch if requested. Verify the Micro connection and controls; an enabled permission switch alone does not establish hardware access.
+
+See the mod guides for [Model Spread configuration](mods/model-spread/README.md#configure) and [Theme Icon controls](mods/theme-icon/README.md#appearance-controls). To return to stock, quit Modex and open the unchanged original app.
+
+## Update Modex
+
+From your repository checkout, update the source, install dependencies, and verify the mods. For a clean checkout on `main`:
 
 ```sh
-export CODEX_MODS_SIGN_IDENTITY='Developer ID Application: Your Name (TEAMID)'
-bun run prepare:model-spread --output "$HOME/Codex-Mods/Modex.app"
+git pull --ff-only
+bun install --frozen-lockfile
+bun run modex verify
 ```
 
-Use the same signing team and mod bundle ID on subsequent builds. The legacy `MODEL_SPREAD_SIGN_IDENTITY` environment variable is also accepted. Certificate selection stays local; no certificate or signing credentials belong in this repository.
+Always pass `--identity-from` with the **actual installed Modex path**. These examples use `~/Applications/Modex.app`, matching the installation steps above. If you installed in `/Applications`, substitute `/Applications/Modex.app` in both commands.
 
-## Permissions and app identity
+For an update built from the same stock app, reuse the backup from the first build:
 
-Each mod has a stable, distinct bundle ID under `local.codex`. The app keeps its packaged native icon and runs directly; Theme Icon changes the running Dock icon. Its certificate-based designated requirement stays the same when the app contents change, allowing later builds to match an existing macOS permission grant.
+```sh
+bun run modex prepare --check \
+  --identity-from "$HOME/Applications/Modex.app" \
+  --backup "$HOME/Codex-Mods/first-build/Original-26.901.51231-8109.zip" \
+  --output "$HOME/Codex-Mods/update-1/Modex.app"
+bun run modex prepare \
+  --identity-from "$HOME/Applications/Modex.app" \
+  --backup "$HOME/Codex-Mods/first-build/Original-26.901.51231-8109.zip" \
+  --output "$HOME/Codex-Mods/update-1/Modex.app"
+```
 
-On the first launch, authorize the **modded app itself** in System Settings → Privacy & Security → Input Monitoring if you use Codex Micro. A grant for the stock app or an old launcher does not authorize a different app identity. Verify the app's permission status and actual Micro operation; an enabled switch alone does not prove a stored signature still matches.
+Use a new staging directory for each build. The backup must match the current stock source exactly. When using a different supported stock build, omit `--backup` from both commands to create a new backup in the new staging directory.
 
-Changing the signing team or bundle ID requires a deliberate permission migration. OS permission resets can also require reauthorization. These locally built apps are not notarized, and vendor keychain, app-group, push, or attestation behavior is not guaranteed under a different signing identity.
+Review the reported selected, installed, and removed mods, then follow [Install and open](#install-and-open) to switch copies. `--identity-from` preserves the installed bundle ID and signing team and checks for accidental mod removal. Without it, preparation treats this as a fresh build and has no installed app to compare.
 
-General agent instructions live in [AGENTS.md](AGENTS.md). For verification, packaging, signing, permission, or runtime failures, start with [REPAIR.md](REPAIR.md), then follow the affected mod’s scoped repair guide.
+**Updates default to both mods too.** If you intentionally use a single mod, pass its selection to verification and both preparation commands as described below.
 
-## Repository layout
+## Choose mods
+
+`--mods` specifies the **complete intended set**, not an addition to the defaults:
+
+| Selection | Result |
+| --- | --- |
+| Omit `--mods` | Model Spread + Theme Icon |
+| `--mods model-spread,theme-icon` | Model Spread + Theme Icon |
+| `--mods model-spread` | Model Spread only |
+| `--mods theme-icon` | Theme Icon only |
+
+For example, to intentionally build an update with **Theme Icon only**, use the same selection throughout:
+
+```sh
+bun run modex verify --mods theme-icon
+bun run modex prepare --check --mods theme-icon \
+  --identity-from "$HOME/Applications/Modex.app" \
+  --output "$HOME/Codex-Mods/icon-only-1/Modex.app"
+bun run modex prepare --mods theme-icon \
+  --identity-from "$HOME/Applications/Modex.app" \
+  --output "$HOME/Codex-Mods/icon-only-1/Modex.app"
+```
+
+This explicitly requests removal of Model Spread if it is installed. Without an explicit `--mods` list, preparation rejects dropping any detected installed mod. Empty, duplicate, and unknown mod names are rejected; the order you list them does not change the build.
+
+Run `bun run modex --help` for all options. The older `verify:model-spread`, `prepare:model-spread`, `verify:theme-icon`, and `prepare:theme-icon` commands remain available as intentionally single-mod workflows.
+
+## Troubleshooting and permissions
+
+Start with [REPAIR.md](REPAIR.md) for compatibility, packaging, signing, permission, or runtime failures, then follow the affected mod's repair guide. Unknown stock versions require a reviewed adaptation; do not bypass the compatibility checks.
+
+New root-CLI builds use `local.codex.model-spread` as their bundle ID. Updates using `--identity-from` retain the installed identity regardless of the selected mods. A first installation has its own macOS permission grants; stock Codex or an old launcher's grants do not authorize it. Changing the bundle ID or signing team can require reauthorization.
+
+The built app is locally signed, not notarized. Vendor keychain, app-group, push, and attestation behavior is not guaranteed under a different signing identity. See [permission continuity](REPAIR.md#macos-permission-continuity) for diagnosis. Build on the destination Mac because the normal-profile paths are set during packaging.
+
+## Development
 
 ```text
+modex.mjs            Root CLI: selection, verification, and preparation
 mods/
-  model-spread/       Model-specific transforms, adapters, instructions, and tests
-  theme-icon/         Theme icon rendering, Appearance controls, and native adapter
-lib/
-  asar.mjs           Archive reading, integrity verification, and overlay repacking
-  prepare-mod.mjs    Shared compatibility, backup, and preparation workflow
-  package-app.mjs    Safe second-copy packaging shared by mods
-  sign-app.mjs       Stable app identity, profile environment, and certificate signing
+  combined/          Ordered composition and joint regression tests
+  model-spread/      Model Spread transforms, adapters, and tests
+  theme-icon/        Theme Icon transforms, adapters, and tests
+lib/                 Shared archive, metadata, packaging, and signing utilities
 ```
 
-[Shared utility documentation](lib/README.md) covers the lower-level interfaces. To add a mod, create a directory under `mods/` with its own README, app identity, exact compatibility manifest, transforms, and tests. Reuse `lib/` for archive and app packaging rather than duplicating it. Register the mod in the table above and add its verification/preparation scripts to the root package file.
-
-## Validation
+Each mod owns its feature behavior and exact compatibility manifest. Composition validates the selected mods against pristine stock bytes and applies their transforms sequentially, retaining both changes to shared bundles. The signed app records its selected set in ASAR `modex.json`; older builds are detected through known mod files. Malformed or unrecognized installed metadata stops an update.
 
 ```sh
 bun test
-bun run verify:model-spread
+bun run modex verify
 ```
 
-Plain tests use synthetic fixtures. The Model Spread verifier additionally reads the locally installed compatible stock app, checks deterministic transforms and generated import paths, and supplies its native bundles to the HOME regression test. It does not package or launch an app.
+`bun test` runs the test suites with available fixtures. The root verifier also checks the stock signature, exact hashes, deterministic transforms, syntax, and imports, and supplies stock bundles to the selected mods' integration tests. With both selected, it checks their shared startup behavior and singleton equivalence. Tests requiring unavailable stock fixtures are skipped in plain test runs. The certificate regression runs when `CODEX_MODS_SIGN_IDENTITY` is explicitly set; the legacy `MODEL_SPREAD_SIGN_IDENTITY` is also accepted. Verification does not package or launch an app or prove physical Micro operation.
 
-The certificate regression signs two disposable fixture apps with different build hashes and a renamed app, and verifies that their designated requirements remain identical. It runs only when `CODEX_MODS_SIGN_IDENTITY` (or the legacy variable) is explicitly set. Without stock bundles or a signing identity, the corresponding integration tests are reported as skipped. No hosted CI needs access to private signing keys or proprietary app files.
+`bun run verify` is a convenience alias. Packaging uses `bun run modex prepare`; there is no `prepare` lifecycle script, so `bun install` never packages an app.
+
+To add a mod, follow the [shared utility documentation](lib/README.md) and [agent instructions](AGENTS.md). Keep its source, README, compatibility manifest, and tests under `mods/`; register it in `mods/combined/compatibility.mjs`, wire its transform and fixture setup into the composition build/verifier, and test shared-bundle interactions before enabling it by default. See the [composition guide](mods/combined/README.md) for details.
 
 ## Source and scope
 
-Model Spread was imported from [the original gist](https://gist.github.com/nicosuave/4cde10499b4bc7bd9a7a33e94e63379c), including its subsequent single-app signing and permission fixes. This repository is the maintained source going forward.
+Model Spread was imported from [the original gist](https://gist.github.com/nicosuave/4cde10499b4bc7bd9a7a33e94e63379c), including its subsequent signing and permission fixes. This repository is the maintained source going forward.
 
-Only mod source and tests are included. Stock app binaries, extracted vendor bundles, app backups, profiles, logs, and local signing data stay on the machine. These are version-specific modifications, not an official plugin interface; unknown app versions fail compatibility checks rather than applying guessed patches.
+Only mod source and tests belong in the repository. Keep stock binaries, extracted bundles, built apps, backups, profiles, authentication, logs, and signing material local. These are version-specific modifications, not an official plugin interface.

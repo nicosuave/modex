@@ -4,10 +4,12 @@
   "type": "module",
   "scripts": {
     "test": "bun test",
+    "verify": "bun modex.mjs verify",
     "verify:model-spread": "bun mods/model-spread/verify-mod.mjs",
     "prepare:model-spread": "bun mods/model-spread/prepare-mod.mjs",
     "verify:theme-icon": "bun mods/theme-icon/verify-mod.mjs",
-    "prepare:theme-icon": "bun mods/theme-icon/prepare-mod.mjs"
+    "prepare:theme-icon": "bun mods/theme-icon/prepare-mod.mjs",
+    "modex": "bun modex.mjs"
   },
   "devDependencies": {
     "pngjs": "^7.0.0",
