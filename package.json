@@ -5,9 +5,12 @@
   "scripts": {
     "test": "bun test",
     "verify:model-spread": "bun mods/model-spread/verify-mod.mjs",
-    "prepare:model-spread": "bun mods/model-spread/prepare-mod.mjs"
+    "prepare:model-spread": "bun mods/model-spread/prepare-mod.mjs",
+    "verify:theme-icon": "bun mods/theme-icon/verify-mod.mjs",
+    "prepare:theme-icon": "bun mods/theme-icon/prepare-mod.mjs"
   },
   "devDependencies": {
+    "pngjs": "^7.0.0",
     "react": "19.2.8",
     "react-test-renderer": "19.2.8"
   }

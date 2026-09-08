@@ -7,6 +7,7 @@
 | Mod | What it does | Supported stock build |
 | --- | --- | --- |
 | [Model Spread](mods/model-spread/README.md) | Configurable model/reasoning slots shared by the composer slider and Codex Micro knob | 26.901.51231 (8109) |
+| [Theme Icon](mods/theme-icon/README.md) | Automatic theme-colored Codex Dock icon with per-theme Appearance variants | 26.901.51231 (8109) |
 
 Each mod owns its transforms, compatibility checks, native adapters, and behavioral tests. Mods currently build separate app copies; combining multiple mods into one app is not implemented.
 
@@ -38,7 +39,7 @@ Use the same signing team and mod bundle ID on subsequent builds. The legacy `MO
 
 ## Permissions and app identity
 
-Each mod has a stable, distinct bundle ID under `local.codex`. The app keeps its native icon and runs directly. Its certificate-based designated requirement stays the same when the app contents change, allowing later builds to match an existing macOS permission grant.
+Each mod has a stable, distinct bundle ID under `local.codex`. The app keeps its packaged native icon and runs directly; Theme Icon changes the running Dock icon. Its certificate-based designated requirement stays the same when the app contents change, allowing later builds to match an existing macOS permission grant.
 
 On the first launch, authorize the **modded app itself** in System Settings → Privacy & Security → Input Monitoring if you use Codex Micro. A grant for the stock app or an old launcher does not authorize a different app identity. Verify the app's permission status and actual Micro operation; an enabled switch alone does not prove a stored signature still matches.
 
@@ -51,8 +52,10 @@ General agent instructions live in [AGENTS.md](AGENTS.md). For verification, pac
 ```text
 mods/
   model-spread/       Model-specific transforms, adapters, instructions, and tests
+  theme-icon/         Theme icon rendering, Appearance controls, and native adapter
 lib/
   asar.mjs           Archive reading, integrity verification, and overlay repacking
+  prepare-mod.mjs    Shared compatibility, backup, and preparation workflow
   package-app.mjs    Safe second-copy packaging shared by mods
   sign-app.mjs       Stable app identity, profile environment, and certificate signing
 ```
