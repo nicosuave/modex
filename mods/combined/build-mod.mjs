@@ -3,6 +3,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {transform as modelSpread} from '../model-spread/build-mod.mjs';
 import {transform as themeIcon} from '../theme-icon/build-mod.mjs';
+import {transform as customCli} from '../custom-cli/build-mod.mjs';
 import {transform as taskPanes} from '../task-panes/build-mod.mjs';
 import {compatibility,compatibilityFor,selectMods,componentManifests} from './compatibility.mjs';
 import {recordChanges} from '../../lib/build-receipt.mjs';
@@ -26,6 +27,11 @@ export async function transform(bundles,mods,{onStage=()=>{}}={}) {
   if(selected.includes('task-panes')) {
     const next=taskPanes(composed);
     onStage(recordChanges('task-panes','task pane adapters',composed,next));
+    composed=next;
+  }
+  if(selected.includes('custom-cli')) {
+    const next=await customCli(composed);
+    onStage(recordChanges('custom-cli','custom CLI launch configuration',composed,next));
     composed=next;
   }
   return composed;

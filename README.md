@@ -11,6 +11,7 @@ All mods are optional. Use any one or combine them.
 | [Model Spread](mods/model-spread/README.md) | `model-spread` | Editable model/reasoning slots shared by the composer slider and Codex Micro knob |
 | [Theme Icon](mods/theme-icon/README.md) | `theme-icon` | A Dock icon that follows your theme, with color and background choices in Appearance settings |
 | [Task Panes](mods/task-panes/README.md) | `task-panes` | Split panes and tabs for local, SSH, and cloud Codex tasks |
+| [Custom CLI](mods/custom-cli/README.md) | `custom-cli` | Use a different local CLI executable or configuration overrides |
 
 For example, `--mods theme-icon,task-panes` combines Theme Icon and Task Panes. Build on the Mac where you will use the app.
 

@@ -73,3 +73,9 @@ test('development is explicit and cannot leak into status or module-build option
   for(const command of ['status','dev'])assert.throws(()=>parseArgs([command,'--dev-root','/modules']));
   for(const command of ['verify','prepare','status'])assert.throws(()=>parseArgs([command,'--watch']));
 });
+
+test('custom CLI can be selected alone or with task panes without changing defaults',()=>{
+  assert.deepEqual(parseArgs(['prepare','--mods','custom-cli']).mods,['custom-cli']);
+  assert.deepEqual(parseArgs(['verify','--mods','custom-cli,task-panes']).mods,['task-panes','custom-cli']);
+  assert.deepEqual(parseArgs(['verify']).mods,both);
+});
