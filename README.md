@@ -115,6 +115,64 @@ This explicitly requests removal of Model Spread if it is installed. Without an 
 
 Run `bun run modex --help` for all options. The older `verify:model-spread`, `prepare:model-spread`, `verify:theme-icon`, and `prepare:theme-icon` commands remain available as intentionally single-mod workflows.
 
+## Inspect the installed build
+
+```sh
+bun run modex status --app "$HOME/Applications/Modex.app"
+bun run modex status --app "$HOME/Applications/Modex.app" --json
+```
+
+New builds record the stock version and archive hash, Modex Git revision and
+uncommitted state, source-content hash, selected mods, and each transform's before/
+after hashes. `status` reads that receipt from the app and checks the final recorded
+files. Use your actual installed path, such as `/Applications/Modex.app`, when it
+differs from the default. Older builds remain readable but report their receipt
+as unavailable.
+
+These checks identify packaged code; they do not verify the code signature or
+claim that a running process has loaded that build. In development mode, status
+also checks external module compatibility and reports modules changed since
+packaging. External status describes files on disk, not a running window's state.
+
+## Development modules
+
+Normal builds remain self-contained. An explicit development build can load
+editable modules from a dedicated local directory, avoiding app packaging for
+changes to those modules. See the [development module guide](mods/development/README.md)
+for the compatibility boundary and recovery behavior.
+
+```sh
+# Run from this checkout. Use the same --mods selection throughout if using one mod.
+modules="$HOME/Library/Application Support/Modex/modules"
+bun run modex dev --output "$modules"
+bun run modex verify --dev-root "$modules"
+bun run modex prepare --check \
+  --identity-from /Applications/Modex.app \
+  --dev-root "$modules" \
+  --output "$PWD/work/development-app/Modex.app"
+bun run modex prepare \
+  --identity-from /Applications/Modex.app \
+  --dev-root "$modules" \
+  --output "$PWD/work/development-app/Modex.app"
+
+# After launching the staged app with an isolated profile:
+bun run modex dev --output "$modules" --watch
+```
+
+Keep one installed Modex beside the untouched stock app. Use the installed app's
+actual location for `--identity-from`; the example uses `/Applications/Modex.app`.
+The module directory is stable across checkouts. Stage and verify an update, then
+replace the installed Modex only after it quits. Keep at most one previous Modex
+for rollback and remove temporary app builds after the installed update verifies.
+
+Theme Icon pixel/tint changes reload live and retain the current palette. Changes
+to Model Spread's editor/slot logic or the theme settings UI take effect when you
+reload the window or restart the development app; save or discard any open draft
+first. The watcher never reloads or quits an app. Installed hooks, native payload
+contracts, compatibility manifests, and bootstrap changes still require a new
+verified, signed build. To return to a self-contained app, prepare without
+`--dev-root` into a new staging path.
+
 ## Troubleshooting and permissions
 
 Start with [REPAIR.md](REPAIR.md) for compatibility, packaging, signing, permission, or runtime failures, then follow the affected mod's repair guide. Unknown stock versions require a reviewed adaptation; do not bypass the compatibility checks.
@@ -131,6 +189,7 @@ Packaging includes a scoped [app-tools authentication repair](mods/app-tools-aut
 modex.mjs            Root CLI: selection, verification, and preparation
 mods/
   app-tools-auth/    Native task-tool authentication repair for every build
+  development/       Opt-in external modules, compatibility checks, and reload runtime
   combined/          Ordered composition and joint regression tests
   model-spread/      Model Spread transforms, adapters, and tests
   theme-icon/        Theme Icon transforms, adapters, and tests
