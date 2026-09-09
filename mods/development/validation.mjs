@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-export const moduleSets={'theme-icon':['theme-icon-render','theme-icon-runtime'],'model-spread':['model-spread','model-spread-editor']};
+export const moduleSets={'theme-icon':['theme-icon-render','theme-icon-runtime'],'model-spread':['model-spread','model-spread-editor'],'task-panes':['task-panes-runtime','task-panes-drag']};
 export const digest=value=>crypto.createHash('sha256').update(value).digest('hex');
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 export function readModule(root,manifest,id) {

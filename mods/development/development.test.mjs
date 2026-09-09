@@ -2,6 +2,8 @@ import {test,expect} from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import React from 'react';
+import TestRenderer,{act} from 'react-test-renderer';
 import {buildDevelopment,buildRuntime,computeHookHash} from './build.mjs';
 import {inspectDevelopment,digest,evaluateModule} from './validation.mjs';
 import {createRefresh,start,responseFor,rendererSource} from './main.mjs';
@@ -123,4 +125,51 @@ test('editor ESM wrapper binds only its fixed model spread dependency',async()=>
     const bad=path.join(root,'bad.mjs');fs.writeFileSync(bad,rendererSource('model-spread-editor','require("node:fs");'));
     await expect(import(bad)).rejects.toThrow('Unexpected development dependency');
   }finally{fs.rmSync(root,{recursive:true,force:true});}
+});
+
+test('external pane runtime shares the same drag coordinator as stock hooks',async()=>{
+  const root=temporary(),priorActEnvironment=globalThis.IS_REACT_ACT_ENVIRONMENT;
+  let view;
+  globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+  try {
+    const manifest=await buildDevelopment(root,['task-panes']);
+    expect(Object.keys(manifest.modules).sort()).toEqual(['task-panes-drag','task-panes-runtime']);
+    for(const id of ['task-panes-drag','task-panes-runtime']){
+      const source=fs.readFileSync(path.join(root,manifest.modules[id].file),'utf8');
+      fs.writeFileSync(path.join(root,`${id}.mjs`),rendererSource(id,source));
+    }
+    const dragModule=await import(path.join(root,'task-panes-drag.mjs'));
+    const paneModule=await import(path.join(root,'task-panes-runtime.mjs'));
+    expect(typeof paneModule.Workspace).toBe('function');
+    const store=paneModule.createWorkspaceStore(),navigations=[];
+    await act(async()=>{
+      view=TestRenderer.create(React.createElement(paneModule.Workspace,{
+        React,store,route:{routeKind:'local-thread',conversationId:'a',hostId:'local',pathname:'/local/a'},
+        navigate:path=>navigations.push(path),
+        Task:({task})=>React.createElement('div',{'data-rendered-task':task.key},task.title),
+      },React.createElement('div',{'data-stock-task':true},'Stock task A')),
+      {createNodeMock:element=>element.type==='div'?{getBoundingClientRect:()=>({left:0,top:0,width:1000,height:700})}:null});
+    });
+    expect(view.root.findByProps({'data-stock-task':true})).toBeTruthy();
+    // Use the external stock-hook dependency, without injecting a coordinator
+    // or attaching a test handler: Workspace must own this same singleton.
+    await act(async()=>{
+      dragModule.drag.start([{key:'local:local:b',path:'/local/b',kind:'local',routeKind:'local-thread',conversationId:'b',hostId:'local',title:'Task B'}]);
+      dragModule.drag.move({x:990,y:350});
+    });
+    expect(view.root.findByProps({'data-modex-drop-preview':'right'}).findByType('span').children).toEqual(['Split right']);
+    await act(async()=>{expect(dragModule.drag.drop()).toBe(true);});
+    expect(store.getSnapshot().root.type).toBe('split');
+    expect(store.getSnapshot().root.first.tabs.map(task=>task.key)).toEqual(['local:local:a']);
+    expect(store.getSnapshot().root.second.tabs.map(task=>task.key)).toEqual(['local:local:b']);
+    expect(view.root.findByProps({'data-modex-task-key':'local:local:b'}).props['data-modex-pane-active']).toBe('true');
+    expect(view.root.findAllByProps({'data-modex-drop-preview':'right'})).toHaveLength(0);
+    expect(navigations).toEqual(['/local/b']);
+    const bad=path.join(root,'pane-bad.mjs');fs.writeFileSync(bad,rendererSource('task-panes-runtime','require("node:fs");'));
+    await expect(import(bad)).rejects.toThrow('Unexpected development dependency');
+  }finally{
+    if(view)await act(async()=>view.unmount());
+    globalThis.IS_REACT_ACT_ENVIRONMENT=priorActEnvironment;
+    fs.rmSync(root,{recursive:true,force:true});
+  }
 });

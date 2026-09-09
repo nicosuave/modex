@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import {digest,moduleSets,inspectDevelopment} from './validation.mjs';
 const repo=path.resolve(import.meta.dirname,'../..');
-const editable=new Set(['mods/model-spread/model-spread.mjs','mods/model-spread/editor.mjs',...['runtime','render','tint','palette'].map(id=>`mods/theme-icon/${id}.mjs`)]);
+const editable=new Set(['mods/model-spread/model-spread.mjs','mods/model-spread/editor.mjs',...['runtime','render','tint','palette'].map(id=>`mods/theme-icon/${id}.mjs`),...['runtime','layout','drag'].map(id=>`mods/task-panes/${id}.mjs`)]);
 function validateMods(mods) {
   if(!Array.isArray(mods)||!mods.length||new Set(mods).size!==mods.length)throw new Error('Development mods must be a nonempty list without duplicates');
   for(const id of mods)if(!Object.hasOwn(moduleSets,id))throw new Error(`Development mode unsupported for mod: ${id}`);
@@ -34,7 +34,7 @@ export function sourceForMods(mods) {
   if(!source)throw new Error('Development mode needs at least one mod');
   return source;
 }
-const entries={'theme-icon-render':'theme-icon/render.mjs','theme-icon-runtime':'theme-icon/runtime.mjs','model-spread':'model-spread/model-spread.mjs','model-spread-editor':'model-spread/editor.mjs'};
+const entries={'theme-icon-render':'theme-icon/render.mjs','theme-icon-runtime':'theme-icon/runtime.mjs','model-spread':'model-spread/model-spread.mjs','model-spread-editor':'model-spread/editor.mjs','task-panes-runtime':'task-panes/runtime.mjs','task-panes-drag':'task-panes/drag.mjs'};
 async function bundle(file,options={}) {
   const result=await Bun.build({entrypoints:[file],target:'browser',format:'cjs',write:false,minify:false,...options});
   if(!result.success)throw new AggregateError(result.logs,`Could not build ${file}`);
@@ -53,7 +53,7 @@ export async function buildDevelopment(output,mods) {
   }
   mods=[...mods].sort();
   const source=sourceForMods(mods),hookHash=computeHookHash(mods),contents={};
-  for(const id of mods.flatMap(mod=>moduleSets[mod]))contents[id]=await bundle(path.join(repo,'mods',entries[id]),id==='model-spread-editor'?{external:['./model-spread.mjs']}:{});
+  for(const id of mods.flatMap(mod=>moduleSets[mod]))contents[id]=await bundle(path.join(repo,'mods',entries[id]),id==='model-spread-editor'?{external:['./model-spread.mjs']}:id==='task-panes-runtime'?{plugins:[{name:'task-panes-shared-drag',setup(build){build.onResolve({filter:/^\.\/drag\.mjs$/},()=>({path:'./drag.mjs',external:true}));}}]}:{});
   const generation=digest(JSON.stringify(contents));
   for(const candidate of [path.join(output,'generations'),path.join(output,'generations',generation)])if(fs.existsSync(candidate)&&fs.lstatSync(candidate).isSymbolicLink())throw new Error('Development generation directories cannot be symlinks');
   fs.mkdirSync(path.join(output,'generations',generation),{recursive:true});
