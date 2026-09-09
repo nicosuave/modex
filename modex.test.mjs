@@ -58,3 +58,18 @@ test('rejects unknown arguments and incomplete path flags', () => {
   }
   assert.throws(() => parseArgs(['verify', '--check']));
 });
+
+test('status only accepts inspection options',()=>{
+  assert.deepEqual(parseArgs(['status','--app','/installed/Modex.app','--json']).args,['--app','/installed/Modex.app','--json']);
+  for(const flag of ['--mods','--source','--output','--dev-root'])assert.throws(()=>parseArgs(['status',flag,'value']));
+  assert.throws(()=>parseArgs(['status','--app']));
+});
+
+test('development is explicit and cannot leak into status or module-build options',()=>{
+  assert.deepEqual(parseArgs(['prepare','--dev-root','/modules']).args,['--dev-root','/modules']);
+  assert.deepEqual(parseArgs(['verify','--dev-root','/modules']).args,['--dev-root','/modules']);
+  assert.deepEqual(parseArgs(['dev','--output','/modules','--mods','theme-icon','--watch']).mods,['theme-icon']);
+  assert.deepEqual(parseArgs(['dev','--output','/modules','--watch']).args,['--output','/modules','--watch']);
+  for(const command of ['status','dev'])assert.throws(()=>parseArgs([command,'--dev-root','/modules']));
+  for(const command of ['verify','prepare','status'])assert.throws(()=>parseArgs([command,'--watch']));
+});

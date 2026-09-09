@@ -20,10 +20,12 @@ export function main(args=process.argv.slice(2),{mods,explicitSelection=false}={
     buildOverlay:async(input,output)=>{
       const bundles=Object.fromEntries(Object.keys(manifest.files).map(name=>[name,fs.readFileSync(path.join(input,name),'utf8')]));
       validateInputs(bundles,selectedMods);
-      const patched=await transform(bundles,selectedMods);
+      const transforms=[];
+      const patched=await transform(bundles,selectedMods,{onStage:records=>transforms.push(...records)});
       for(const [name,content]of Object.entries(patched)) {
         const target=path.join(output,name);fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,content);
       }
+      return transforms;
     },
   });
 }

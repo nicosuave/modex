@@ -4,7 +4,8 @@ import crypto from 'node:crypto';
 import {transform as modelSpread} from '../model-spread/build-mod.mjs';
 import {transform as themeIcon} from '../theme-icon/build-mod.mjs';
 import {compatibility,compatibilityFor,selectMods,componentManifests} from './compatibility.mjs';
-export async function transform(bundles,mods) {
+import {recordChanges} from '../../lib/build-receipt.mjs';
+export async function transform(bundles,mods,{onStage=()=>{}}={}) {
   const selected=selectMods(mods);
   // Both manifests validate pristine bytes. Only transforms compose: the shared
   // app-initial bundle must pass from Model Spread into Theme Icon, never merge.
@@ -12,9 +13,16 @@ export async function transform(bundles,mods) {
   if(selected.includes('model-spread')) {
     const spreadInputs=Object.fromEntries(Object.keys(componentManifests['model-spread'].files).map(name=>[name,composed[`webview/assets/${name}`]]));
     const spread=modelSpread(spreadInputs);
-    composed={...composed,...Object.fromEntries(Object.entries(spread).map(([name,content])=>[`webview/assets/${name}`,content]))};
+    const next={...composed,...Object.fromEntries(Object.entries(spread).map(([name,content])=>[`webview/assets/${name}`,content]))};
+    onStage(recordChanges('model-spread','model-spread adapters',composed,next));
+    composed=next;
   }
-  return selected.includes('theme-icon')?themeIcon(composed):composed;
+  if(selected.includes('theme-icon')) {
+    const next=await themeIcon(composed);
+    onStage(recordChanges('theme-icon','theme-icon adapters',composed,next));
+    composed=next;
+  }
+  return composed;
 }
 export function validateInputs(bundles,mods) {
   for(const [name,hash]of Object.entries(compatibilityFor(mods).files)) {

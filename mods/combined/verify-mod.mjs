@@ -7,25 +7,52 @@ import {inspectCompatibility} from '../../lib/prepare-mod.mjs';
 import {entryFor} from '../../lib/asar.mjs';
 import {compatibilityFor,selectMods,componentManifests} from './compatibility.mjs';
 import {transform} from './build-mod.mjs';
-import {verifyRepair} from '../app-tools-auth/patch.mjs';
+import {verifyRepair,repairOverlay} from '../app-tools-auth/patch.mjs';
 export async function main(args=process.argv.slice(2),{mods}={}) {
-  if(args.length && !(args.length===2&&args[0]==='--source'))throw Error('Usage: bun run modex verify [--mods LIST] [--source APP]');
+  const options={};
+  for(let i=0;i<args.length;i+=2) {
+    if(!['--source','--dev-root'].includes(args[i])||!args[i+1]||args[i+1].startsWith('--')||Object.hasOwn(options,args[i]))throw Error('Usage: bun run modex verify [--mods LIST] [--source APP] [--dev-root DIRECTORY]');
+    options[args[i]]=args[i+1];
+  }
   const selected=selectMods(mods),compatibility=compatibilityFor(selected);
   console.log(`Selected mods: ${selected.join(', ')}`);
-  const source=args[1]??'/Applications/ChatGPT.app';
+  const source=options['--source']??'/Applications/ChatGPT.app';
   verifyRepair(source);
   execFileSync('/usr/bin/codesign',['--verify','--deep','--strict',source],{stdio:'pipe'});
   const {archive,bundles}=inspectCompatibility(source,compatibility);
   const originals=Object.fromEntries([...bundles].map(([name,bytes])=>[name,bytes.toString()]));
-  const first=await transform(originals,selected),second=await transform(originals,selected);
+  const build=async()=>{
+    const output=await transform(originals,selected);
+    if(!options['--dev-root'])return output;
+    const replacements=new Map(Object.entries(output).map(([name,content])=>[name,Buffer.from(content)]));
+    repairOverlay(source,replacements);
+    const {applyDevelopment,readDevelopmentProtocol}=await import('../development/patch.mjs');
+    await applyDevelopment(replacements,options['--dev-root'],selected,readDevelopmentProtocol(source));
+    return Object.fromEntries([...replacements].map(([name,bytes])=>[name,bytes.toString()]));
+  };
+  const first=await build(),second=await build();
   if(JSON.stringify(first)!==JSON.stringify(second))throw Error('Nondeterministic mod transformation');
+  const virtual={};
+  if(options['--dev-root']) {
+    const {inspectDevelopmentForBuild}=await import('../development/patch.mjs');
+    const {rendererSource}=await import('../development/main.mjs');
+    const {rendererModules}=await import('../development/contract.mjs');
+    const {readModule}=await import('../development/validation.mjs');
+    const manifest=inspectDevelopmentForBuild(options['--dev-root'],selected,source);
+    for(const id of Object.keys(rendererModules))if(manifest.modules[id]) {
+      virtual[`webview/assets/modex-development-${id}.mjs`]=rendererSource(id,readModule(options['--dev-root'],manifest,id));
+    }
+  }
   const parser=new Bun.Transpiler({loader:'js'});
-  for(const [name,content]of Object.entries(first)) {
+  for(const [name,content]of Object.entries({...first,...virtual})) {
     parser.transformSync(content);
     for(const item of parser.scan(content).imports) {
       if(!item.path.startsWith('.'))continue;
+      // This verified stock Sentry helper catches failed resolution and uses its
+      // alternative preload path. It is not an import introduced by the mod.
+      if(name==='.vite/build/window-all-closed-KNH8jchn.js'&&item.kind==='require-resolve'&&item.path==='../../preload/default.js')continue;
       const target=path.posix.normalize(path.posix.join(path.posix.dirname(name),item.path));
-      if(!Object.hasOwn(first,target)&&!entryFor(archive,target))throw Error(`Missing import ${item.path} in ${name}`);
+      if(!Object.hasOwn(first,target)&&!Object.hasOwn(virtual,target)&&!entryFor(archive,target))throw Error(`Missing import ${item.path} in ${name}`);
     }
   }
   const temporary=fs.mkdtempSync(path.join(os.tmpdir(),'modex-verify-'));
@@ -43,7 +70,7 @@ export async function main(args=process.argv.slice(2),{mods}={}) {
     }
     if(selected.includes('theme-icon'))env.THEME_ICON_BUNDLES=temporary;
     if(selected.length===2)env.COMBINED_BUNDLES=temporary;
-    const suites=['lib','modex.test.mjs','mods/combined','mods/app-tools-auth',...selected.map(id=>`mods/${id}`)];
+    const suites=['lib','modex.test.mjs','mods/combined','mods/app-tools-auth','mods/development',...selected.map(id=>`mods/${id}`)];
     const result=spawnSync(process.execPath,['test',...suites],{cwd:path.resolve(import.meta.dirname,'../..'),env,stdio:'inherit'});
     if(result.error)throw result.error;if(result.status!==0)throw Error('Mod verification tests failed');
   }finally {fs.rmSync(temporary,{recursive:true,force:true});}
