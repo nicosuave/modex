@@ -6,8 +6,9 @@ Build **Modex.app**, a local copy of Codex with **both Model Spread and Theme Ic
 | --- | --- |
 | [Model Spread](mods/model-spread/README.md) | Editable model/reasoning slots shared by the composer slider and Codex Micro knob |
 | [Theme Icon](mods/theme-icon/README.md) | A Dock icon that follows your theme, with color and background choices in Appearance settings |
+| [App-tools authentication](mods/app-tools-auth/README.md) | Restores native Codex task tools, including `read_thread`, in the separately signed Modex app; included in every build |
 
-You can also [choose a single mod](#choose-mods). This repository contains the build tools and mod source; you build the app on the Mac where you will use it.
+You can also [choose a single UI mod](#choose-mods). The app-tools authentication repair applies to every selection automatically. This repository contains the build tools and mod source; you build the app on the Mac where you will use it.
 
 ## Prerequisites
 
@@ -129,6 +130,7 @@ Packaging includes a scoped [app-tools authentication repair](mods/app-tools-aut
 ```text
 modex.mjs            Root CLI: selection, verification, and preparation
 mods/
+  app-tools-auth/    Native task-tool authentication repair for every build
   combined/          Ordered composition and joint regression tests
   model-spread/      Model Spread transforms, adapters, and tests
   theme-icon/        Theme Icon transforms, adapters, and tests
