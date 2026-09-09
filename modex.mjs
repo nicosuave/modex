@@ -5,7 +5,7 @@ import os from 'node:os';
 
 export const HELP=`Usage: bun run modex <verify|prepare|status|dev> [options]
 
-  --mods model-spread,theme-icon  Selected mods (default: both)
+  --mods LIST                    Complete selection (default: model-spread,theme-icon)
   --source APP                   Supported stock app (default /Applications/ChatGPT.app)
   --dev-root DIRECTORY           Verify/prepare with explicit external development modules
   --help                         Show help
@@ -22,7 +22,7 @@ status options:
 
 dev options:
   --output DIRECTORY             Required absolute dedicated module-output directory
-  --mods LIST                    Modules to build (default: both mods)
+  --mods LIST                    Modules to build (default: model-spread,theme-icon)
   --watch                        Rebuild module output when source changes
 
 Development modules are used only by an app explicitly prepared with --dev-root.
@@ -30,8 +30,10 @@ Icon pixel changes reload live; editor/slot changes require a window reload or
 restart. Hook changes require packaging again. No app is automatically reloaded.
 
 Explicit --mods selects the complete intended set, including intentional removals.
+Available mods: model-spread, theme-icon, task-panes. Task Panes is opt-in; use
+--mods model-spread,theme-icon,task-panes to add it to the default selection.
 Without it, updates reject dropping any mod recorded in the installed app.
-Both mods are composed in a fixed order. Preparation records the selected set in
+Selected mods are composed in a fixed order. Preparation records the selected set in
 the signed app; it never installs, launches, overwrites, or quits an app.
 `;
 export function parseArgs(args) {

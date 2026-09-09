@@ -10,7 +10,8 @@ export const HELP=`Usage: bun mods/combined/prepare-mod.mjs --output /absolute/n
   --backup ZIP          Explicitly validate/reuse an original-app backup
   --check               Read-only validation; no packaging
   --help                Show help
-Builds BOTH Model Spread and Theme Icon into one signed app, outside Applications.
+Builds the selected mods into one signed app, outside Applications.
+The default selection is Model Spread and Theme Icon.
 Never overwrites, installs, launches, or quits an app. New installs default to
 local.codex.model-spread; updates should pass --identity-from the installed app.
 `;

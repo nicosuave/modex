@@ -6,9 +6,10 @@ Build **Modex.app**, a local copy of Codex with **both Model Spread and Theme Ic
 | --- | --- |
 | [Model Spread](mods/model-spread/README.md) | Editable model/reasoning slots shared by the composer slider and Codex Micro knob |
 | [Theme Icon](mods/theme-icon/README.md) | A Dock icon that follows your theme, with color and background choices in Appearance settings |
+| [Task Panes](mods/task-panes/README.md) | Opt-in split panes and tabs for local, SSH, and cloud Codex tasks |
 | [App-tools authentication](mods/app-tools-auth/README.md) | Restores native Codex task tools, including `read_thread`, in the separately signed Modex app; included in every build |
 
-You can also [choose a single UI mod](#choose-mods). The app-tools authentication repair applies to every selection automatically. This repository contains the build tools and mod source; you build the app on the Mac where you will use it.
+You can also [choose UI mods](#choose-mods), including the opt-in Task Panes mod. The app-tools authentication repair applies to every selection automatically. This repository contains the build tools and mod source; you build the app on the Mac where you will use it.
 
 ## Prerequisites
 
@@ -86,7 +87,7 @@ Use a new staging directory for each build. The backup must match the current st
 
 Review the reported selected, installed, and removed mods, then follow [Install and open](#install-and-open) to switch copies. `--identity-from` preserves the installed bundle ID and signing team and checks for accidental mod removal. Without it, preparation treats this as a fresh build and has no installed app to compare.
 
-**Updates default to both mods too.** If you intentionally use a single mod, pass its selection to verification and both preparation commands as described below.
+**Updates default to Model Spread + Theme Icon too.** If you use a different selection, including Task Panes, pass the complete selection to verification and both preparation commands as described below.
 
 ## Choose mods
 
@@ -98,6 +99,10 @@ Review the reported selected, installed, and removed mods, then follow [Install 
 | `--mods model-spread,theme-icon` | Model Spread + Theme Icon |
 | `--mods model-spread` | Model Spread only |
 | `--mods theme-icon` | Theme Icon only |
+| `--mods model-spread,theme-icon,task-panes` | Model Spread + Theme Icon + Task Panes |
+| `--mods task-panes` | Task Panes only |
+
+Task Panes is never enabled implicitly. See its [build and usage guide](mods/task-panes/README.md) for the opt-in commands and drag controls.
 
 For example, to intentionally build an update with **Theme Icon only**, use the same selection throughout:
 
@@ -193,6 +198,7 @@ mods/
   combined/          Ordered composition and joint regression tests
   model-spread/      Model Spread transforms, adapters, and tests
   theme-icon/        Theme Icon transforms, adapters, and tests
+  task-panes/        Opt-in task splits, tabs, native renderer adapters, and tests
 lib/                 Shared archive, metadata, packaging, and signing utilities
 ```
 

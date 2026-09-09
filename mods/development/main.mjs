@@ -25,9 +25,9 @@ let active;
 export function rendererSource(id,source) {
   const contract=rendererModules[id];
   if(!contract)throw Error('Unknown development renderer module');
-  const dependency=id==='model-spread-editor'?`import * as ModelSpread from './model-spread.mjs';\n`:'';
+  const dependency=id==='model-spread-editor'?`import * as ModelSpread from './model-spread.mjs';\n`:id==='task-panes-runtime'?`import * as TaskPanesDrag from './task-panes-drag.mjs';\n`:'';
   return `${dependency}const module={exports:{}};
-const require=name=>{${id==='model-spread-editor'?`if(name==='./model-spread.mjs')return ModelSpread;`:''}throw Error('Unexpected development dependency: '+name);};
+const require=name=>{${id==='model-spread-editor'?`if(name==='./model-spread.mjs')return ModelSpread;`:id==='task-panes-runtime'?`if(name==='./drag.mjs')return TaskPanesDrag;`:''}throw Error('Unexpected development dependency: '+name);};
 (function(require,module,exports){\n${source}\n})(require,module,module.exports);
 ${contract.exports.map(name=>`export const ${name}=module.exports.${name};`).join('\n')}
 `;
