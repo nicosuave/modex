@@ -1,6 +1,6 @@
 # Combined Modex
 
-The root CLI defaults to both [Model Spread](../model-spread/README.md) and [Theme Icon](../theme-icon/README.md). This directory owns ordered composition and also supports explicit selections, including the opt-in [Task Panes](../task-panes/README.md) mod. Each selected mod's complete feature contract still applies.
+This directory applies the selected mods in order and tests their shared-bundle interactions. Each mod can be selected alone or combined with others. See the root [build instructions](../../README.md#first-build).
 
 Run `bun run modex verify`, then `bun run modex prepare --check --identity-from /absolute/path/to/installed/Modex.app --output /absolute/new/staging/Modex.app`, followed by the same preparation command without `--check`. Pass the same complete `--mods` selection to verification and both preparation commands; for example, `--mods task-panes` for Task Panes alone or `--mods model-spread,theme-icon,task-panes` for all three. A fresh installation can omit `--identity-from` and uses Model Spread’s stable bundle ID. Source defaults to `/Applications/ChatGPT.app`; pass `--source` for another supported stock app and `--backup` to explicitly reuse a verified original ZIP.
 

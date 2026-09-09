@@ -1,15 +1,18 @@
 # Modex
 
-Build **Modex.app**, a local copy of Codex with **both Model Spread and Theme Icon enabled by default**. The original Codex app stays unchanged.
+Customize Codex with the mods you want. Modex builds them into a separate, signed **Modex.app** and leaves the original app unchanged.
 
-| Mod | What you get |
-| --- | --- |
-| [Model Spread](mods/model-spread/README.md) | Editable model/reasoning slots shared by the composer slider and Codex Micro knob |
-| [Theme Icon](mods/theme-icon/README.md) | A Dock icon that follows your theme, with color and background choices in Appearance settings |
-| [Task Panes](mods/task-panes/README.md) | Opt-in split panes and tabs for local, SSH, and cloud Codex tasks |
-| [App-tools authentication](mods/app-tools-auth/README.md) | Restores native Codex task tools, including `read_thread`, in the separately signed Modex app; included in every build |
+## Choose mods
 
-You can also [choose UI mods](#choose-mods), including the opt-in Task Panes mod. The app-tools authentication repair applies to every selection automatically. This repository contains the build tools and mod source; you build the app on the Mac where you will use it.
+All mods are optional. Use any one or combine them.
+
+| Mod | Name for `--mods` | What you get |
+| --- | --- | --- |
+| [Model Spread](mods/model-spread/README.md) | `model-spread` | Editable model/reasoning slots shared by the composer slider and Codex Micro knob |
+| [Theme Icon](mods/theme-icon/README.md) | `theme-icon` | A Dock icon that follows your theme, with color and background choices in Appearance settings |
+| [Task Panes](mods/task-panes/README.md) | `task-panes` | Split panes and tabs for local, SSH, and cloud Codex tasks |
+
+For example, `--mods theme-icon,task-panes` combines Theme Icon and Task Panes. Build on the Mac where you will use the app.
 
 ## Prerequisites
 
@@ -36,12 +39,13 @@ If you already use Modex, follow [Update Modex](#update-modex) instead so the ne
 git clone https://github.com/nicosuave/modex.git
 cd modex
 bun install --frozen-lockfile
-bun run modex verify
-bun run modex prepare --check --output "$HOME/Codex-Mods/first-build/Modex.app"
-bun run modex prepare --output "$HOME/Codex-Mods/first-build/Modex.app"
+mods="task-panes" # Choose one or more names from the list above.
+bun run modex verify --mods "$mods"
+bun run modex prepare --check --mods "$mods" --output "$HOME/Codex-Mods/first-build/Modex.app"
+bun run modex prepare --mods "$mods" --output "$HOME/Codex-Mods/first-build/Modex.app"
 ```
 
-These commands verify **both mods**, check the preparation inputs without writing, then create a signed app at `~/Codex-Mods/first-build/Modex.app`. Preparation also creates and verifies a full stock-app backup beside it: `Original-26.901.51231-8109.zip`.
+These commands verify your selection, check the preparation inputs, then create a signed app at `~/Codex-Mods/first-build/Modex.app`. Preparation also creates and verifies a full stock-app backup beside it: `Original-26.901.51231-8109.zip`.
 
 Preparation does not install or launch the app. Output paths must be new, absolute `.app` paths outside Applications. Existing apps and backups are never overwritten. For another attempt, choose a new staging directory; to reuse a backup, pass `--backup` explicitly as shown in the update workflow below.
 
@@ -56,7 +60,7 @@ Modex uses your normal `~/.codex` and `~/Library/Application Support/Codex` prof
 
 If you use Codex Micro, grant **Modex.app** Input Monitoring access in System Settings → Privacy & Security, then relaunch if requested. Verify the Micro connection and controls; an enabled permission switch alone does not establish hardware access.
 
-See the mod guides for [Model Spread configuration](mods/model-spread/README.md#configure) and [Theme Icon controls](mods/theme-icon/README.md#appearance-controls). To return to stock, quit Modex and open the unchanged original app.
+See the mod guides linked above for their controls and configuration. To return to stock, quit Modex and open the unchanged original app.
 
 ## Update Modex
 
@@ -65,7 +69,8 @@ From your repository checkout, update the source, install dependencies, and veri
 ```sh
 git pull --ff-only
 bun install --frozen-lockfile
-bun run modex verify
+mods="task-panes" # Set this to the complete set you want in the updated app.
+bun run modex verify --mods "$mods"
 ```
 
 Always pass `--identity-from` with the **actual installed Modex path**. These examples use `~/Applications/Modex.app`, matching the installation steps above. If you installed in `/Applications`, substitute `/Applications/Modex.app` in both commands.
@@ -73,11 +78,11 @@ Always pass `--identity-from` with the **actual installed Modex path**. These ex
 For an update built from the same stock app, reuse the backup from the first build:
 
 ```sh
-bun run modex prepare --check \
+bun run modex prepare --check --mods "$mods" \
   --identity-from "$HOME/Applications/Modex.app" \
   --backup "$HOME/Codex-Mods/first-build/Original-26.901.51231-8109.zip" \
   --output "$HOME/Codex-Mods/update-1/Modex.app"
-bun run modex prepare \
+bun run modex prepare --mods "$mods" \
   --identity-from "$HOME/Applications/Modex.app" \
   --backup "$HOME/Codex-Mods/first-build/Original-26.901.51231-8109.zip" \
   --output "$HOME/Codex-Mods/update-1/Modex.app"
@@ -87,38 +92,9 @@ Use a new staging directory for each build. The backup must match the current st
 
 Review the reported selected, installed, and removed mods, then follow [Install and open](#install-and-open) to switch copies. `--identity-from` preserves the installed bundle ID and signing team and checks for accidental mod removal. Without it, preparation treats this as a fresh build and has no installed app to compare.
 
-**Updates default to Model Spread + Theme Icon too.** If you use a different selection, including Task Panes, pass the complete selection to verification and both preparation commands as described below.
+Use the same complete `--mods` list for verification and preparation. Leaving a mod out of that list removes it from the new build. If `--mods` is omitted, the CLI currently selects Model Spread and Theme Icon and rejects updates that would drop an installed mod.
 
-## Choose mods
-
-`--mods` specifies the **complete intended set**, not an addition to the defaults:
-
-| Selection | Result |
-| --- | --- |
-| Omit `--mods` | Model Spread + Theme Icon |
-| `--mods model-spread,theme-icon` | Model Spread + Theme Icon |
-| `--mods model-spread` | Model Spread only |
-| `--mods theme-icon` | Theme Icon only |
-| `--mods model-spread,theme-icon,task-panes` | Model Spread + Theme Icon + Task Panes |
-| `--mods task-panes` | Task Panes only |
-
-Task Panes is never enabled implicitly. See its [build and usage guide](mods/task-panes/README.md) for the opt-in commands and drag controls.
-
-For example, to intentionally build an update with **Theme Icon only**, use the same selection throughout:
-
-```sh
-bun run modex verify --mods theme-icon
-bun run modex prepare --check --mods theme-icon \
-  --identity-from "$HOME/Applications/Modex.app" \
-  --output "$HOME/Codex-Mods/icon-only-1/Modex.app"
-bun run modex prepare --mods theme-icon \
-  --identity-from "$HOME/Applications/Modex.app" \
-  --output "$HOME/Codex-Mods/icon-only-1/Modex.app"
-```
-
-This explicitly requests removal of Model Spread if it is installed. Without an explicit `--mods` list, preparation rejects dropping any detected installed mod. Empty, duplicate, and unknown mod names are rejected; the order you list them does not change the build.
-
-Run `bun run modex --help` for all options. The older `verify:model-spread`, `prepare:model-spread`, `verify:theme-icon`, and `prepare:theme-icon` commands remain available as intentionally single-mod workflows.
+Run `bun run modex --help` for all options.
 
 ## Inspect the installed build
 
@@ -147,21 +123,22 @@ changes to those modules. See the [development module guide](mods/development/RE
 for the compatibility boundary and recovery behavior.
 
 ```sh
-# Run from this checkout. Use the same --mods selection throughout if using one mod.
+# Run from this checkout with the same selection throughout.
+mods="task-panes"
 modules="$HOME/Library/Application Support/Modex/modules"
-bun run modex dev --output "$modules"
-bun run modex verify --dev-root "$modules"
-bun run modex prepare --check \
+bun run modex dev --mods "$mods" --output "$modules"
+bun run modex verify --mods "$mods" --dev-root "$modules"
+bun run modex prepare --check --mods "$mods" \
   --identity-from /Applications/Modex.app \
   --dev-root "$modules" \
   --output "$PWD/work/development-app/Modex.app"
-bun run modex prepare \
+bun run modex prepare --mods "$mods" \
   --identity-from /Applications/Modex.app \
   --dev-root "$modules" \
   --output "$PWD/work/development-app/Modex.app"
 
 # After launching the staged app with an isolated profile:
-bun run modex dev --output "$modules" --watch
+bun run modex dev --mods "$mods" --output "$modules" --watch
 ```
 
 Keep one installed Modex beside the untouched stock app. Use the installed app's
@@ -198,22 +175,22 @@ mods/
   combined/          Ordered composition and joint regression tests
   model-spread/      Model Spread transforms, adapters, and tests
   theme-icon/        Theme Icon transforms, adapters, and tests
-  task-panes/        Opt-in task splits, tabs, native renderer adapters, and tests
+  task-panes/        Task splits, tabs, native renderer adapters, and tests
 lib/                 Shared archive, metadata, packaging, and signing utilities
 ```
 
-Each mod owns its feature behavior and exact compatibility manifest. Composition validates the selected mods against pristine stock bytes and applies their transforms sequentially, retaining both changes to shared bundles. The signed app records its selected set in ASAR `modex.json`; older builds are detected through known mod files. Malformed or unrecognized installed metadata stops an update.
+Each mod owns its feature behavior and exact compatibility manifest. Composition validates the selected mods against pristine stock bytes and applies their transforms sequentially, retaining changes to shared bundles. The signed app records its selected set in ASAR `modex.json`; older builds are detected through known mod files. Malformed or unrecognized installed metadata stops an update.
 
 ```sh
 bun test
-bun run modex verify
+bun run modex verify --mods model-spread,theme-icon,task-panes
 ```
 
-`bun test` runs the test suites with available fixtures. The root verifier also checks the stock signature, exact hashes, deterministic transforms, syntax, and imports, and supplies stock bundles to the selected mods' integration tests. With both selected, it checks their shared startup behavior and singleton equivalence. Tests requiring unavailable stock fixtures are skipped in plain test runs. The certificate regression runs when `CODEX_MODS_SIGN_IDENTITY` is explicitly set; the legacy `MODEL_SPREAD_SIGN_IDENTITY` is also accepted. Verification does not package or launch an app or prove physical Micro operation.
+`bun test` runs the test suites with available fixtures. The root verifier also checks the stock signature, exact hashes, deterministic transforms, syntax, and imports, and supplies stock bundles to the selected mods' integration tests. For combined selections, it also checks shared-bundle behavior. Tests requiring unavailable stock fixtures are skipped in plain test runs. The certificate regression runs when `CODEX_MODS_SIGN_IDENTITY` is explicitly set; the legacy `MODEL_SPREAD_SIGN_IDENTITY` is also accepted. Verification does not package or launch an app or prove physical Micro operation.
 
 `bun run verify` is a convenience alias. Packaging uses `bun run modex prepare`; there is no `prepare` lifecycle script, so `bun install` never packages an app.
 
-To add a mod, follow the [shared utility documentation](lib/README.md) and [agent instructions](AGENTS.md). Keep its source, README, compatibility manifest, and tests under `mods/`; register it in `mods/combined/compatibility.mjs`, wire its transform and fixture setup into the composition build/verifier, and test shared-bundle interactions before enabling it by default. See the [composition guide](mods/combined/README.md) for details.
+To add a mod, follow the [shared utility documentation](lib/README.md) and [agent instructions](AGENTS.md). Keep its source, README, compatibility manifest, and tests under `mods/`; register it in `mods/combined/compatibility.mjs`, wire its transform and fixture setup into the composition build/verifier, and test shared-bundle interactions before publishing it. See the [composition guide](mods/combined/README.md) for details.
 
 ## Source and scope
 
