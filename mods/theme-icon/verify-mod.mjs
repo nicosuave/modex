@@ -6,10 +6,12 @@ import {execFileSync,spawnSync} from 'node:child_process';
 import {inspectCompatibility} from '../../lib/prepare-mod.mjs';
 import {entryFor} from '../../lib/asar.mjs';
 import {transform} from './build-mod.mjs';
+import {verifyRepair} from '../app-tools-auth/patch.mjs';
 const args=process.argv.slice(2);
 try {
   if(args.length && !(args.length===2&&args[0]==='--source'))throw new Error('Usage: bun verify-mod.mjs [--source APP]');
   const source=args[1]??'/Applications/ChatGPT.app';
+  verifyRepair(source);
   const manifest=JSON.parse(fs.readFileSync(new URL('./compatibility.json',import.meta.url),'utf8'));
   execFileSync('/usr/bin/codesign',['--verify','--deep','--strict',source],{stdio:'pipe'});
   const {archive,bundles}=inspectCompatibility(source,manifest);
@@ -28,8 +30,8 @@ try {
   const temporary=fs.mkdtempSync(path.join(os.tmpdir(),'theme-icon-verify-'));
   try {
     for(const[name,bytes]of bundles){const target=path.join(temporary,name);fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,bytes);}
-    const result=spawnSync(process.execPath,['test','mods/theme-icon','lib/prepare-mod.test.mjs','mods/model-spread/prepare-mod.test.mjs'],{
-      cwd:path.resolve(import.meta.dirname,'../..'),env:{...process.env,THEME_ICON_BUNDLES:temporary},stdio:'inherit',
+    const result=spawnSync(process.execPath,['test','mods/theme-icon','mods/app-tools-auth','lib/prepare-mod.test.mjs','mods/model-spread/prepare-mod.test.mjs'],{
+      cwd:path.resolve(import.meta.dirname,'../..'),env:{...process.env,THEME_ICON_BUNDLES:temporary,APP_TOOLS_AUTH_SOURCE:source},stdio:'inherit',
     });
     if(result.error)throw result.error;if(result.status!==0)throw new Error('Theme Icon tests failed');
   }finally {fs.rmSync(temporary,{recursive:true,force:true});}

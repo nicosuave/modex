@@ -7,11 +7,13 @@ import {inspectCompatibility} from '../../lib/prepare-mod.mjs';
 import {entryFor} from '../../lib/asar.mjs';
 import {compatibilityFor,selectMods,componentManifests} from './compatibility.mjs';
 import {transform} from './build-mod.mjs';
+import {verifyRepair} from '../app-tools-auth/patch.mjs';
 export async function main(args=process.argv.slice(2),{mods}={}) {
   if(args.length && !(args.length===2&&args[0]==='--source'))throw Error('Usage: bun run modex verify [--mods LIST] [--source APP]');
   const selected=selectMods(mods),compatibility=compatibilityFor(selected);
   console.log(`Selected mods: ${selected.join(', ')}`);
   const source=args[1]??'/Applications/ChatGPT.app';
+  verifyRepair(source);
   execFileSync('/usr/bin/codesign',['--verify','--deep','--strict',source],{stdio:'pipe'});
   const {archive,bundles}=inspectCompatibility(source,compatibility);
   const originals=Object.fromEntries([...bundles].map(([name,bytes])=>[name,bytes.toString()]));
@@ -31,7 +33,7 @@ export async function main(args=process.argv.slice(2),{mods}={}) {
     for(const [name,bytes]of bundles) {
       const target=path.join(temporary,name);fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,bytes);
     }
-    const env={...process.env};
+    const env={...process.env,APP_TOOLS_AUTH_SOURCE:source};
     // Only fixtures for this verified source/selection may activate integration tests.
     delete env.MODEL_SPREAD_BUNDLES;delete env.THEME_ICON_BUNDLES;delete env.COMBINED_BUNDLES;
     if(selected.includes('model-spread')) {
@@ -41,7 +43,7 @@ export async function main(args=process.argv.slice(2),{mods}={}) {
     }
     if(selected.includes('theme-icon'))env.THEME_ICON_BUNDLES=temporary;
     if(selected.length===2)env.COMBINED_BUNDLES=temporary;
-    const suites=['lib','modex.test.mjs','mods/combined',...selected.map(id=>`mods/${id}`)];
+    const suites=['lib','modex.test.mjs','mods/combined','mods/app-tools-auth',...selected.map(id=>`mods/${id}`)];
     const result=spawnSync(process.execPath,['test',...suites],{cwd:path.resolve(import.meta.dirname,'../..'),env,stdio:'inherit'});
     if(result.error)throw result.error;if(result.status!==0)throw Error('Mod verification tests failed');
   }finally {fs.rmSync(temporary,{recursive:true,force:true});}

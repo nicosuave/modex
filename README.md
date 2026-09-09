@@ -12,6 +12,7 @@ You can also [choose a single mod](#choose-mods). This repository contains the b
 ## Prerequisites
 
 - macOS and [Bun](https://bun.sh).
+- Xcode Command Line Tools and Node development headers (Homebrew Node supplies them), for the [app-tools authentication repair](mods/app-tools-auth/README.md).
 - An unmodified stock Codex app, version **26.901.51231 (8109)**. Other builds fail compatibility checks.
 - A **Developer ID Application** signing certificate with its private key available in Keychain. Preparation requires this certificate; ad-hoc signing is not supported.
 
@@ -120,6 +121,8 @@ Start with [REPAIR.md](REPAIR.md) for compatibility, packaging, signing, permiss
 New root-CLI builds use `local.codex.model-spread` as their bundle ID. Updates using `--identity-from` retain the installed identity regardless of the selected mods. A first installation has its own macOS permission grants; stock Codex or an old launcher's grants do not authorize it. Changing the bundle ID or signing team can require reauthorization.
 
 The built app is locally signed, not notarized. Vendor keychain, app-group, push, and attestation behavior is not guaranteed under a different signing identity. See [permission continuity](REPAIR.md#macos-permission-continuity) for diagnosis. Build on the destination Mac because the normal-profile paths are set during packaging.
+
+Packaging includes a scoped [app-tools authentication repair](mods/app-tools-auth/README.md) so the native task tools accept the correctly signed Modex ancestor while retaining the vendor Node and CLI checks. It does not alter browser or Computer Use authorization.
 
 ## Development
 
