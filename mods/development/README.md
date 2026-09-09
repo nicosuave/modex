@@ -12,7 +12,7 @@ privileges; use a directory and source you control.
 `bun run modex dev --output /absolute/dedicated/directory` bundles the selected
 modules and publishes a complete generation through `manifest.json`. Add
 `--watch` to rebuild after source changes. `--mods` accepts the same complete
-selection as the root CLI; the default is both UI mods. The first output must be
+selection as the root CLI; omitting `--mods` selects Model Spread and Theme Icon. The first output must be
 new or empty. Later builds only reuse valid Modex development output, preserving
 older generations. App bundles, non-owned directories, and corrupted output are
 rejected; preserve a failed output and choose a new directory to recover it.

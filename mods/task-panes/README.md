@@ -1,6 +1,6 @@
 # Task Panes
 
-Task Panes adds split panes and tab groups to Codex tasks. It is opt-in: the default build still enables only Model Spread and Theme Icon.
+Task Panes adds split panes and tab groups to Codex tasks. Select it with `--mods task-panes`, alone or alongside other mods.
 
 ## Controls
 
