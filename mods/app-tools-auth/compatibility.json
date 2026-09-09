@@ -1,0 +1,12 @@
+{
+  "version": "26.901.51231",
+  "build": "8109",
+  "files": {
+    ".vite/build/main-BT6ViFC-.js": "ff6dac303dd188bddfdbfbfa43d0b04507dcf5136b773114970d73f9c2a9af01"
+  },
+  "resources": {
+    "native/browser-use-peer-authorization.node": "3b01bba1b976095104c2c1643dddb1980487786aaf66e3f54908feb9dc2748ad",
+    "codex": "a30ec314bbd0e3721632234d07db7c99855db3b9f1e32dbe8c791947f07e7629",
+    "cua_node/bin/node": "a2f397892a25f0c0e2b6e764395be935d30c974c2c85e814acacb1bed6d2f42a"
+  }
+}

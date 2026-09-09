@@ -12,6 +12,7 @@ Read this when verification, packaging, signing, permissions, or runtime behavio
 - Packaging/signing failure: inspect subprocess errors, destination permissions, disk space, certificate availability, and entitlements. Preserve nested vendor signatures and identity-entitlement removal. Retain certificate signing; do not disable Electron fuses, SIP, or Gatekeeper.
 - Input Monitoring denial despite an enabled switch: inspect the actual app's bundle ID, signing team, and designated requirement, and whether the macOS grant matches. Authorize the modded app itself, not stock or an old launcher. Preserve bundle ID and team across updates and display-name changes. Never reset unrelated app permissions.
 - Runtime failure: inspect the separate copy's logs/renderer errors and native import exports. Use an isolated profile before blaming user settings. Do not reset profiles or copy authentication files as a fix.
+- Missing native task tools with `Codex app tools pipe closed`: check for `dynamic_app_tools_peer_rejected reason=untrusted-code-signing-identity`. Follow the [app-tools authentication repair](mods/app-tools-auth/README.md); preserving Node and CLI signatures alone does not authorize the Modex ancestor. Do not disable the shared peer authorizer.
 
 ## Repair and verify
 
