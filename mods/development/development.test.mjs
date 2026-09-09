@@ -173,3 +173,14 @@ test('external pane runtime shares the same drag coordinator as stock hooks',asy
     fs.rmSync(root,{recursive:true,force:true});
   }
 });
+
+test('custom CLI stays packaged while selected renderer modules remain editable',async()=>{
+  const root=temporary();
+  try {
+    const manifest=await buildDevelopment(root,['task-panes','custom-cli']);
+    expect(manifest.mods).toEqual(['custom-cli','task-panes']);
+    expect(Object.keys(manifest.modules).sort()).toEqual(['task-panes-drag','task-panes-runtime']);
+    expect(inspectDevelopment(root,{hookHash:computeHookHash(['task-panes','custom-cli']),mods:['task-panes','custom-cli'],source:manifest.source})).toEqual(manifest);
+    expect(()=>inspectDevelopment(root,{hookHash:computeHookHash(['task-panes']),mods:['task-panes'],source:manifest.source})).toThrow();
+  }finally{fs.rmSync(root,{recursive:true,force:true});}
+});

@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import {compatibilityEntryPath} from '../../lib/prepare-mod.mjs';
-export const componentManifests=Object.fromEntries(['model-spread','theme-icon','task-panes'].map(id=>[id,JSON.parse(fs.readFileSync(new URL(`../${id}/compatibility.json`,import.meta.url),'utf8'))]));
+export const componentManifests=Object.fromEntries(['model-spread','theme-icon','task-panes','custom-cli'].map(id=>[id,JSON.parse(fs.readFileSync(new URL(`../${id}/compatibility.json`,import.meta.url),'utf8'))]));
 export const defaultMods=['model-spread','theme-icon'];
-export const legacyMarkers={'model-spread':'webview/assets/model-spread.mjs','theme-icon':'webview/assets/theme-icon-runtime.mjs','task-panes':'webview/assets/task-panes-runtime.mjs'};
+export const legacyMarkers={'model-spread':'webview/assets/model-spread.mjs','theme-icon':'webview/assets/theme-icon-runtime.mjs','task-panes':'webview/assets/task-panes-runtime.mjs','custom-cli':'.vite/build/modex-custom-cli.cjs'};
 export function selectMods(mods=defaultMods) {
   const known=Object.keys(componentManifests);
   if(!Array.isArray(mods)||!mods.length||mods.some(id=>!Object.hasOwn(componentManifests,id))||new Set(mods).size!==mods.length)throw Error(`Select unique known mods: ${known.join(', ')}`);

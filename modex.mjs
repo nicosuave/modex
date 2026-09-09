@@ -30,8 +30,8 @@ Icon pixel changes reload live; editor/slot changes require a window reload or
 restart. Hook changes require packaging again. No app is automatically reloaded.
 
 Explicit --mods selects the complete intended set, including intentional removals.
-Available mods: model-spread, theme-icon, task-panes. Task Panes is opt-in; use
---mods model-spread,theme-icon,task-panes to add it to the default selection.
+Available mods: model-spread, theme-icon, task-panes, custom-cli.
+Choose any one or combine them with a comma-separated --mods list.
 Without it, updates reject dropping any mod recorded in the installed app.
 Selected mods are composed in a fixed order. Preparation records the selected set in
 the signed app; it never installs, launches, overwrites, or quits an app.

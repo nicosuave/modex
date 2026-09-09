@@ -62,7 +62,7 @@ export async function main(args=process.argv.slice(2),{mods}={}) {
     }
     const env={...process.env,APP_TOOLS_AUTH_SOURCE:source};
     // Only fixtures for this verified source/selection may activate integration tests.
-    delete env.MODEL_SPREAD_BUNDLES;delete env.THEME_ICON_BUNDLES;delete env.COMBINED_BUNDLES;delete env.TASK_PANES_BUNDLES;
+    delete env.MODEL_SPREAD_BUNDLES;delete env.THEME_ICON_BUNDLES;delete env.COMBINED_BUNDLES;delete env.TASK_PANES_BUNDLES;delete env.CUSTOM_CLI_BUNDLES;delete env.CUSTOM_CLI_EXECUTABLE;
     if(selected.includes('model-spread')) {
       const spread=path.join(temporary,'model-spread');fs.mkdirSync(spread);
       for(const name of Object.keys(componentManifests['model-spread'].files))fs.writeFileSync(path.join(spread,name),bundles.get(`webview/assets/${name}`));
@@ -71,6 +71,7 @@ export async function main(args=process.argv.slice(2),{mods}={}) {
     if(selected.includes('theme-icon'))env.THEME_ICON_BUNDLES=temporary;
     if(selected.includes('model-spread')&&selected.includes('theme-icon'))env.COMBINED_BUNDLES=temporary;
     if(selected.includes('task-panes'))env.TASK_PANES_BUNDLES=temporary;
+    if(selected.includes('custom-cli')){env.CUSTOM_CLI_BUNDLES=temporary;env.CUSTOM_CLI_EXECUTABLE=path.resolve(source,'Contents/Resources/codex');}
     const suites=['lib','modex.test.mjs','mods/combined','mods/app-tools-auth','mods/development',...selected.map(id=>`mods/${id}`)];
     const result=spawnSync(process.execPath,['test',...suites],{cwd:path.resolve(import.meta.dirname,'../..'),env,stdio:'inherit'});
     if(result.error)throw result.error;if(result.status!==0)throw Error('Mod verification tests failed');
