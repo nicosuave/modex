@@ -9,7 +9,8 @@ export const files = {
   cloudPage: 'webview/assets/remote-conversation-page-4a5925193bd5.js',
 };
 export function replaceOnce(source, anchor, replacement) {
-  if (typeof source !== 'string' || source.split(anchor).length !== 2) throw new Error(`Expected exactly one Task Panes anchor: ${anchor.slice(0, 110)}`);
+  if (typeof source !== 'string' || source.split(anchor).length !== 2)
+    throw new Error(`Expected exactly one Task Panes anchor: ${anchor.slice(0, 110)}`);
   return source.replace(anchor, replacement);
 }
 // These providers reuse the stock scope-key derivation and composer initializer.
@@ -83,46 +84,111 @@ function ModexLocalPaneContents({task,scope,preview,allowMissingConversation}) {
 }
 `;
 export function transform(bundles) {
-  const output={...bundles};
-  const patch=(file,anchor,value)=>{output[file]=replaceOnce(output[file],anchor,value);};
-  output[files.initial]='import * as TaskPanesRuntime from "./task-panes-runtime.mjs";import * as TaskPanesRenderer from "./task-panes-renderer.mjs";'+output[files.initial];
-  patch(files.initial,'path:Mv,element:(0,i3.jsx)(pSo,{children:(0,i3.jsx)(wSo,{})})','path:Mv,element:(0,i3.jsx)(ModexTaskPage,{Page:wSo})');
-  patch(files.initial,'path:`/remote/:taskId`,element:(0,i3.jsx)(TSo,{})','path:`/remote/:taskId`,element:(0,i3.jsx)(ModexTaskPage,{Page:TSo})');
-  patch(files.initial,'function iN(){if(cN!=null&&cN.isConnected&&aN.has(cN))return cN;cN=null;let e=u5n();if(e!=null)return e;for(let e of aN.keys())if(e.isConnected)return e;return document.querySelector(`[data-codex-composer]`)}',
-    'function iN(){if(cN!=null&&cN.isConnected&&aN.has(cN)&&TaskPanesRuntime.composerAvailable(cN))return cN;cN=null;let e=u5n();if(e!=null)return e;for(let e of aN.keys())if(e.isConnected&&TaskPanesRuntime.composerAvailable(e))return e;return Array.from(document.querySelectorAll(`[data-codex-composer]`)).find(e=>TaskPanesRuntime.composerAvailable(e))??null}');
-  patch(files.initial,'function u5n(){for(let[e,{isPrimaryComposer:t}]of aN)if(t&&e.isConnected)return e;return null}',
-    'function u5n(){for(let[e,{isPrimaryComposer:t}]of aN)if(t&&e.isConnected&&TaskPanesRuntime.composerAvailable(e))return e;return null}');
-  output[files.initial]+=providerAdapter;
-  output[files.primary]='import {drag as TaskPanesDrag} from "./task-panes-drag.mjs";'+output[files.primary];
-  patch(files.primary,'function mEn(e,t,n){if(e==null||t==null||document.elementsFromPoint==null)return null;',
-    'function mEn(e,t,n){if(TaskPanesDrag.claims({x:e,y:t}))return null;if(e==null||t==null||document.elementsFromPoint==null)return null;');
-  patch(files.primary,'D.current=r?.(a)??[a];let o=D.current.length>1?',
-    'D.current=r?.(a)??[a];TaskPanesDrag.start(D.current.flatMap(state=>{const ref=state.threadReference,decoded=Fv(state.threadKey);if(decoded?.kind===`remote`){const id=decoded.taskId;return[{kind:`cloud`,routeKind:`remote-thread`,taskId:id,key:`cloud:${id}`,path:`/remote/${id}`,title:id}]}if(decoded?.kind!==`local`||state.threadId==null||ref==null)return[];const id=state.threadId,hostId=ref.hostId??`local`,path=Mv(id);return[{kind:`local`,routeKind:`local-thread`,conversationId:id,hostId,key:`local:${hostId}:${id}`,path:hostId===`local`?path:jpe(path,hostId),title:ref.getTitle()}]}));let o=D.current.length>1?');
-  patch(files.primary,'k.current=e.pointerCoordinates?.x??null,A.current=e.pointerCoordinates?.y??null;let t=EZ(e.active.data.current);',
-    'k.current=e.pointerCoordinates?.x??null,A.current=e.pointerCoordinates?.y??null;TaskPanesDrag.move(e.pointerCoordinates);let t=EZ(e.active.data.current);');
-  patch(files.primary,'te=e=>{l.current=null,S(!1);let t=k.current,n=A.current,r=EZ(e.active.data.current)',
-    'te=e=>{if(mEn(k.current,A.current)==null&&TaskPanesDrag.drop()){ee(e);return}TaskPanesDrag.cancel();l.current=null,S(!1);let t=k.current,n=A.current,r=EZ(e.active.data.current)');
-  patch(files.primary,'J=e=>{l.current=null,S(!1),k.current=null,A.current=null,j.current=null,D.current=[],yZ(null,null),SZ(null);',
-    'J=e=>{TaskPanesDrag.cancel();l.current=null,S(!1),k.current=null,A.current=null,j.current=null,D.current=[],yZ(null,null),SZ(null);');
-  output[files.localPage]='import * as TaskPanesRuntime from "./task-panes-runtime.mjs";import {ModexPaneProviders,Run as modexReactDOM} from "./app-initial-cadb12d4a15e.js";'+output[files.localPage]+localAdapter;
-  output[files.localThread]='import * as TaskPanesRuntime from "./task-panes-runtime.mjs";'+output[files.localThread];
+  const output = { ...bundles };
+  const patch = (file, anchor, value) => {
+    output[file] = replaceOnce(output[file], anchor, value);
+  };
+  output[files.initial] =
+    'import * as TaskPanesRuntime from "./task-panes-runtime.mjs";import * as TaskPanesRenderer from "./task-panes-renderer.mjs";' +
+    output[files.initial];
+  patch(
+    files.initial,
+    'path:Mv,element:(0,i3.jsx)(pSo,{children:(0,i3.jsx)(wSo,{})})',
+    'path:Mv,element:(0,i3.jsx)(ModexTaskPage,{Page:wSo})',
+  );
+  patch(
+    files.initial,
+    'path:`/remote/:taskId`,element:(0,i3.jsx)(TSo,{})',
+    'path:`/remote/:taskId`,element:(0,i3.jsx)(ModexTaskPage,{Page:TSo})',
+  );
+  patch(
+    files.initial,
+    'function iN(){if(cN!=null&&cN.isConnected&&aN.has(cN))return cN;cN=null;let e=u5n();if(e!=null)return e;for(let e of aN.keys())if(e.isConnected)return e;return document.querySelector(`[data-codex-composer]`)}',
+    'function iN(){if(cN!=null&&cN.isConnected&&aN.has(cN)&&TaskPanesRuntime.composerAvailable(cN))return cN;cN=null;let e=u5n();if(e!=null)return e;for(let e of aN.keys())if(e.isConnected&&TaskPanesRuntime.composerAvailable(e))return e;return Array.from(document.querySelectorAll(`[data-codex-composer]`)).find(e=>TaskPanesRuntime.composerAvailable(e))??null}',
+  );
+  patch(
+    files.initial,
+    'function u5n(){for(let[e,{isPrimaryComposer:t}]of aN)if(t&&e.isConnected)return e;return null}',
+    'function u5n(){for(let[e,{isPrimaryComposer:t}]of aN)if(t&&e.isConnected&&TaskPanesRuntime.composerAvailable(e))return e;return null}',
+  );
+  output[files.initial] += providerAdapter;
+  output[files.primary] =
+    'import {drag as TaskPanesDrag} from "./task-panes-drag.mjs";' + output[files.primary];
+  patch(
+    files.primary,
+    'function mEn(e,t,n){if(e==null||t==null||document.elementsFromPoint==null)return null;',
+    'function mEn(e,t,n){if(TaskPanesDrag.claims({x:e,y:t}))return null;if(e==null||t==null||document.elementsFromPoint==null)return null;',
+  );
+  patch(
+    files.primary,
+    'D.current=r?.(a)??[a];let o=D.current.length>1?',
+    'D.current=r?.(a)??[a];TaskPanesDrag.start(D.current.flatMap(state=>{const ref=state.threadReference,decoded=Fv(state.threadKey);if(decoded?.kind===`remote`){const id=decoded.taskId;return[{kind:`cloud`,routeKind:`remote-thread`,taskId:id,key:`cloud:${id}`,path:`/remote/${id}`,title:id}]}if(decoded?.kind!==`local`||state.threadId==null||ref==null)return[];const id=state.threadId,hostId=ref.hostId??`local`,path=Mv(id);return[{kind:`local`,routeKind:`local-thread`,conversationId:id,hostId,key:`local:${hostId}:${id}`,path:hostId===`local`?path:jpe(path,hostId),title:ref.getTitle()}]}));let o=D.current.length>1?',
+  );
+  patch(
+    files.primary,
+    'k.current=e.pointerCoordinates?.x??null,A.current=e.pointerCoordinates?.y??null;let t=EZ(e.active.data.current);',
+    'k.current=e.pointerCoordinates?.x??null,A.current=e.pointerCoordinates?.y??null;TaskPanesDrag.move(e.pointerCoordinates);let t=EZ(e.active.data.current);',
+  );
+  patch(
+    files.primary,
+    'te=e=>{l.current=null,S(!1);let t=k.current,n=A.current,r=EZ(e.active.data.current)',
+    'te=e=>{if(mEn(k.current,A.current)==null&&TaskPanesDrag.drop()){ee(e);return}TaskPanesDrag.cancel();l.current=null,S(!1);let t=k.current,n=A.current,r=EZ(e.active.data.current)',
+  );
+  patch(
+    files.primary,
+    'J=e=>{l.current=null,S(!1),k.current=null,A.current=null,j.current=null,D.current=[],yZ(null,null),SZ(null);',
+    'J=e=>{TaskPanesDrag.cancel();l.current=null,S(!1),k.current=null,A.current=null,j.current=null,D.current=[],yZ(null,null),SZ(null);',
+  );
+  output[files.localPage] =
+    'import * as TaskPanesRuntime from "./task-panes-runtime.mjs";import {ModexPaneProviders,Run as modexReactDOM} from "./app-initial-cadb12d4a15e.js";' +
+    output[files.localPage] +
+    localAdapter;
+  output[files.localThread] =
+    'import * as TaskPanesRuntime from "./task-panes-runtime.mjs";' + output[files.localThread];
   // Hidden native summary content extends beyond this clipping wrapper. Hidden
   // overflow can still scroll on focus; clip prevents it shifting the transcript.
-  patch(files.localThread,'function X_(e){let t=(0,Z_.c)(22)', 'function X_(e){const modexPane=TaskPanesRuntime.usePane(YO);let t=(0,Z_.c)(23)');
-  patch(files.localThread,'t[16]!==b||t[17]!==x?(S=(0,Q_.jsxs)(`div`,{className:`group/realtime-voice-thread relative h-full min-h-0 overflow-hidden`,children:[b,x]}),t[16]=b,t[17]=x,t[18]=S)',
-    't[16]!==b||t[17]!==x||t[22]!==!!modexPane?(S=(0,Q_.jsxs)(`div`,{className:`group/realtime-voice-thread relative h-full min-h-0 overflow-hidden`,style:modexPane?{overflow:`clip`}:undefined,children:[b,x]}),t[16]=b,t[17]=x,t[18]=S,t[22]=!!modexPane)');
-  patch(files.localThread,'(0,YO.useEffect)(Ce,we);let Te;', 'TaskPanesRuntime.useActiveEffect(YO,Ce,we);let Te;');
-  patch(files.localThread,'(0,YO.useEffect)(Le,Re);let ze;', 'TaskPanesRuntime.useActiveEffect(YO,Le,Re);let ze;');
+  patch(
+    files.localThread,
+    'function X_(e){let t=(0,Z_.c)(22)',
+    'function X_(e){const modexPane=TaskPanesRuntime.usePane(YO);let t=(0,Z_.c)(23)',
+  );
+  patch(
+    files.localThread,
+    't[16]!==b||t[17]!==x?(S=(0,Q_.jsxs)(`div`,{className:`group/realtime-voice-thread relative h-full min-h-0 overflow-hidden`,children:[b,x]}),t[16]=b,t[17]=x,t[18]=S)',
+    't[16]!==b||t[17]!==x||t[22]!==!!modexPane?(S=(0,Q_.jsxs)(`div`,{className:`group/realtime-voice-thread relative h-full min-h-0 overflow-hidden`,style:modexPane?{overflow:`clip`}:undefined,children:[b,x]}),t[16]=b,t[17]=x,t[18]=S,t[22]=!!modexPane)',
+  );
+  patch(
+    files.localThread,
+    '(0,YO.useEffect)(Ce,we);let Te;',
+    'TaskPanesRuntime.useActiveEffect(YO,Ce,we);let Te;',
+  );
+  patch(
+    files.localThread,
+    '(0,YO.useEffect)(Le,Re);let ze;',
+    'TaskPanesRuntime.useActiveEffect(YO,Le,Re);let ze;',
+  );
   // Global header registration from the inner thread is unnecessary inside panes;
   // all stock task actions remain available in the normal task view.
-  patch(files.localThread,'function RO(e){let t=(0,JO.c)(150)', 'function RO(e){const modexPane=TaskPanesRuntime.usePane(YO);let t=(0,JO.c)(150)');
-  patch(files.localThread,'et=i!=null&&ad(V.value)===i&&!Rc()&&!P()?', 'et=i!=null&&ad(V.value)===i&&!Rc()&&!P()&&!modexPane?');
-  output[files.cloudPage]='import * as TaskPanesRuntime from "./task-panes-runtime.mjs";import {ModexPaneProviders} from "./app-initial-cadb12d4a15e.js";'+output[files.cloudPage]+cloudAdapter;
-  patch(files.cloudPage,'(0,bo.useEffect)(R,z);', 'TaskPanesRuntime.useActiveEffect(bo,R,z);');
-  for(const file of ['runtime','layout','drag','renderer']) {
-    let content=fs.readFileSync(path.join(import.meta.dirname,`${file}.mjs`),'utf8');
-    for(const dependency of ['runtime','layout','drag','renderer'])content=content.replaceAll(`'./${dependency}.mjs'`,`'./task-panes-${dependency}.mjs'`);
-    output[`webview/assets/task-panes-${file}.mjs`]=content;
+  patch(
+    files.localThread,
+    'function RO(e){let t=(0,JO.c)(150)',
+    'function RO(e){const modexPane=TaskPanesRuntime.usePane(YO);let t=(0,JO.c)(150)',
+  );
+  patch(
+    files.localThread,
+    'et=i!=null&&ad(V.value)===i&&!Rc()&&!P()?',
+    'et=i!=null&&ad(V.value)===i&&!Rc()&&!P()&&!modexPane?',
+  );
+  output[files.cloudPage] =
+    'import * as TaskPanesRuntime from "./task-panes-runtime.mjs";import {ModexPaneProviders} from "./app-initial-cadb12d4a15e.js";' +
+    output[files.cloudPage] +
+    cloudAdapter;
+  patch(files.cloudPage, '(0,bo.useEffect)(R,z);', 'TaskPanesRuntime.useActiveEffect(bo,R,z);');
+  for (const file of ['runtime', 'layout', 'drag', 'renderer']) {
+    let content = fs.readFileSync(path.join(import.meta.dirname, `${file}.mjs`), 'utf8');
+    for (const dependency of ['runtime', 'layout', 'drag', 'renderer'])
+      content = content.replaceAll(`'./${dependency}.mjs'`, `'./task-panes-${dependency}.mjs'`);
+    output[`webview/assets/task-panes-${file}.mjs`] = content;
   }
   return output;
 }
