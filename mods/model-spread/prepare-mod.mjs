@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 import path from 'node:path';
-import {fileURLToPath} from 'node:url';
-import {prepareMain} from '../../lib/prepare-mod.mjs';
-import {legacyMarkers} from '../combined/compatibility.mjs';
-export {hashFile,parseArgs,inspectCompatibility,verifyBackup} from '../../lib/prepare-mod.mjs';
+import { fileURLToPath } from 'node:url';
+import { prepareMain } from '../../lib/prepare-mod.mjs';
+import { legacyMarkers } from '../combined/compatibility.mjs';
+export { hashFile, parseArgs, inspectCompatibility, verifyBackup } from '../../lib/prepare-mod.mjs';
 
-const here=path.dirname(fileURLToPath(import.meta.url));
-export const HELP=`Usage: bun prepare-mod.mjs --output /absolute/path/Modex.app [options]
+const here = path.dirname(fileURLToPath(import.meta.url));
+export const HELP = `Usage: bun prepare-mod.mjs --output /absolute/path/Modex.app [options]
 
   --source /Applications/ChatGPT.app   Original app (default shown)
   --output /absolute/path/Name.app    Required NEW second copy outside Applications
@@ -34,9 +34,12 @@ authentication and macOS permissions are not guaranteed. This command does not
 switch your running app. Review the packaged result before choosing to launch it.
 `;
 
-export function main(args=process.argv.slice(2)) {
-  return prepareMain(args,{modDirectory:here,overlayAtRoot:false,help:HELP,legacyMarkers});
+export function main(args = process.argv.slice(2)) {
+  return prepareMain(args, { modDirectory: here, overlayAtRoot: false, help: HELP, legacyMarkers });
 }
-if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
-  main().catch(error=>{console.error(error.stderr?.toString()||error.message);process.exitCode=1;});
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error.stderr?.toString() || error.message);
+    process.exitCode = 1;
+  });
 }

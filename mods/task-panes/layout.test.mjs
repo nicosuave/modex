@@ -1,14 +1,38 @@
 import { describe, expect, test } from 'bun:test';
-import { createLayout, dropTask, closeTab, activateTab, resizeSplit, toggleMaximize, layoutRects, hitDropZone } from './layout.mjs';
+import {
+  createLayout,
+  dropTask,
+  closeTab,
+  activateTab,
+  resizeSplit,
+  toggleMaximize,
+  layoutRects,
+  hitDropZone,
+} from './layout.mjs';
 
-const task = key => ({ key, path: `/task/${key}`, title: `Task ${key}` });
-const allGroups = state => layoutRects({ ...state, maximizedGroup: null }, { width: 1200, height: 900 }).groups.map(rect => rect.group);
-const keys = state => allGroups(state).flatMap(group => group.tabs.map(tab => tab.key));
-const add = (state, key, targetGroup, edge = 'center', index) => dropTask(state, { task: task(key), targetGroup, edge, index });
-const freeze = value => { if (value && typeof value === 'object') { Object.freeze(value); Object.values(value).forEach(freeze); } return value; };
+const task = (key) => ({ key, path: `/task/${key}`, title: `Task ${key}` });
+const allGroups = (state) =>
+  layoutRects({ ...state, maximizedGroup: null }, { width: 1200, height: 900 }).groups.map(
+    (rect) => rect.group,
+  );
+const keys = (state) => allGroups(state).flatMap((group) => group.tabs.map((tab) => tab.key));
+const add = (state, key, targetGroup, edge = 'center', index) =>
+  dropTask(state, { task: task(key), targetGroup, edge, index });
+const freeze = (value) => {
+  if (value && typeof value === 'object') {
+    Object.freeze(value);
+    Object.values(value).forEach(freeze);
+  }
+  return value;
+};
 
 describe('task pane layout', () => {
-  test.each([['left', 'x', true], ['right', 'x', false], ['top', 'y', true], ['bottom', 'y', false]])('%s creates the expected split', (edge, axis, before) => {
+  test.each([
+    ['left', 'x', true],
+    ['right', 'x', false],
+    ['top', 'y', true],
+    ['bottom', 'y', false],
+  ])('%s creates the expected split', (edge, axis, before) => {
     const original = freeze(createLayout(task('a')));
     const state = add(original, 'b', original.activeGroup, edge);
     expect(state.root.axis).toBe(axis);
@@ -35,10 +59,15 @@ describe('task pane layout', () => {
 
   test('moving a tab across groups preserves the task reference and collapses the source', () => {
     let state = createLayout(task('draft'));
-    const firstId = state.activeGroup, reference = state.root.tabs[0];
+    const firstId = state.activeGroup,
+      reference = state.root.tabs[0];
     state = add(state, 'b', firstId, 'right');
     const target = state.activeGroup;
-    state = dropTask(freeze(state), { task: { ...task('draft'), path: '/different' }, targetGroup: target, edge: 'center' });
+    state = dropTask(freeze(state), {
+      task: { ...task('draft'), path: '/different' },
+      targetGroup: target,
+      edge: 'center',
+    });
     expect(state.root.id).toBe(target);
     expect(keys(state)).toEqual(['b', 'draft']);
     expect(state.root.tabs[1]).toBe(reference);
@@ -58,7 +87,8 @@ describe('task pane layout', () => {
 
   test('splitting own sole tab is a no-op; splitting one of several moves just that tab', () => {
     let state = createLayout(task('a'));
-    for (const edge of ['left', 'right', 'top', 'bottom']) expect(add(state, 'a', state.activeGroup, edge)).toBe(state);
+    for (const edge of ['left', 'right', 'top', 'bottom'])
+      expect(add(state, 'a', state.activeGroup, edge)).toBe(state);
     state = add(state, 'b', state.activeGroup);
     state = add(freeze(state), 'b', state.activeGroup, 'bottom');
     expect(keys(state)).toEqual(['a', 'b']);
@@ -116,13 +146,16 @@ describe('task pane layout', () => {
   test('maximize only changes visible geometry and restores the original split', () => {
     let state = createLayout(task('a'));
     state = add(state, 'b', state.activeGroup, 'right');
-    const root = state.root, id = state.activeGroup;
+    const root = state.root,
+      id = state.activeGroup;
     state = toggleMaximize(freeze(state), id);
     const geometry = layoutRects(state, { width: 777, height: 555 });
     expect(geometry.splitters).toEqual([]);
     expect(geometry.groups).toMatchObject([{ id, x: 0, y: 0, width: 777, height: 555 }]);
     expect(state.root).toBe(root);
-    expect(layoutRects(toggleMaximize(state, id), { width: 777, height: 555 }).groups).toHaveLength(2);
+    expect(layoutRects(toggleMaximize(state, id), { width: 777, height: 555 }).groups).toHaveLength(
+      2,
+    );
     expect(closeTab(state, id, 'b').maximizedGroup).toBeNull();
   });
 
@@ -134,11 +167,11 @@ describe('task pane layout', () => {
     state = resizeSplit(freeze(state), id, 100);
     expect(state.root.ratio).toBe(0.95);
     let geometry = layoutRects(state, { width: 1000, height: 600 });
-    expect(geometry.groups.map(rect => rect.width)).toEqual([736, 260]);
+    expect(geometry.groups.map((rect) => rect.width)).toEqual([736, 260]);
     state = resizeSplit(state, id, -1);
     expect(state.root.ratio).toBe(0.05);
     geometry = layoutRects(state, { width: 1000, height: 600 });
-    expect(geometry.groups.map(rect => rect.width)).toEqual([260, 736]);
+    expect(geometry.groups.map((rect) => rect.width)).toEqual([260, 736]);
   });
 
   test('nested splitters expose their own container for pointer and keyboard resizing', () => {
@@ -160,33 +193,57 @@ describe('task pane layout', () => {
     let state = createLayout(task('a'));
     state = add(state, 'b', state.activeGroup, 'bottom');
     state = resizeSplit(state, state.root.id, 0.01);
-    expect(layoutRects(state, { width: 800, height: 700 }).groups.map(rect => rect.height)).toEqual([180, 516]);
+    expect(
+      layoutRects(state, { width: 800, height: 700 }).groups.map((rect) => rect.height),
+    ).toEqual([180, 516]);
     for (const dimensions of [null, {}, { width: -10, height: Infinity }]) {
       const rects = layoutRects(state, dimensions);
-      for (const rect of [...rects.groups, ...rects.splitters]) expect([rect.x, rect.y, rect.width, rect.height]).toEqual([0, 0, 0, 0]);
+      for (const rect of [...rects.groups, ...rects.splitters])
+        expect([rect.x, rect.y, rect.width, rect.height]).toEqual([0, 0, 0, 0]);
     }
   });
 
-  test.each([[1200, 900], [400, 200], [1, 1], [0, 0]])('nested geometry fits %sx%s without negative sizes or overlaps', (width, height) => {
+  test.each([
+    [1200, 900],
+    [400, 200],
+    [1, 1],
+    [0, 0],
+  ])('nested geometry fits %sx%s without negative sizes or overlaps', (width, height) => {
     let state = createLayout(task('a'));
     state = add(state, 'b', state.activeGroup, 'right');
     state = add(state, 'c', state.activeGroup, 'bottom');
     state = add(state, 'd', state.activeGroup, 'right');
     const geometry = layoutRects(state, { width, height });
     for (const rect of [...geometry.groups, ...geometry.splitters]) {
-      for (const value of [rect.x, rect.y, rect.width, rect.height]) { expect(Number.isFinite(value)).toBe(true); expect(value).toBeGreaterThanOrEqual(0); }
+      for (const value of [rect.x, rect.y, rect.width, rect.height]) {
+        expect(Number.isFinite(value)).toBe(true);
+        expect(value).toBeGreaterThanOrEqual(0);
+      }
       expect(rect.x + rect.width).toBeLessThanOrEqual(width + 1e-8);
       expect(rect.y + rect.height).toBeLessThanOrEqual(height + 1e-8);
     }
-    for (let i = 0; i < geometry.groups.length; i++) for (let j = i + 1; j < geometry.groups.length; j++) {
-      const a = geometry.groups[i], b = geometry.groups[j];
-      expect(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y).toBe(true);
-    }
+    for (let i = 0; i < geometry.groups.length; i++)
+      for (let j = i + 1; j < geometry.groups.length; j++) {
+        const a = geometry.groups[i],
+          b = geometry.groups[j];
+        expect(
+          a.x + a.width <= b.x ||
+            b.x + b.width <= a.x ||
+            a.y + a.height <= b.y ||
+            b.y + b.height <= a.y,
+        ).toBe(true);
+      }
   });
 
   test('drop hit zones select each edge, center, and reject outside coordinates', () => {
     const rect = { x: 10, y: 20, width: 400, height: 200 };
-    for (const [x, y, edge] of [[11, 120, 'left'], [409, 120, 'right'], [210, 21, 'top'], [210, 219, 'bottom'], [210, 120, 'center']]) {
+    for (const [x, y, edge] of [
+      [11, 120, 'left'],
+      [409, 120, 'right'],
+      [210, 21, 'top'],
+      [210, 219, 'bottom'],
+      [210, 120, 'center'],
+    ]) {
       expect(hitDropZone(rect, { x, y })).toBe(edge);
     }
     expect(hitDropZone(rect, { x: 9, y: 120 })).toBeNull();
