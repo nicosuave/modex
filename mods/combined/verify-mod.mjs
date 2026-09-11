@@ -75,7 +75,7 @@ export async function main(args = process.argv.slice(2), { mods } = {}) {
       // This verified stock Sentry helper catches failed resolution and uses its
       // alternative preload path. It is not an import introduced by the mod.
       if (
-        name === '.vite/build/window-all-closed-KNH8jchn.js' &&
+        name === '.vite/build/window-all-closed-DnjtB60s.js' &&
         item.kind === 'require-resolve' &&
         item.path === '../../preload/default.js'
       )

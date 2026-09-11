@@ -19,7 +19,7 @@ For example, `--mods theme-icon,task-panes` combines Theme Icon and Task Panes. 
 
 - macOS and [Bun](https://bun.sh).
 - Xcode Command Line Tools and Node development headers (Homebrew Node supplies them), for the [app-tools authentication repair](mods/app-tools-auth/README.md).
-- An unmodified stock Codex app, version **26.901.51231 (8109)**. Other builds fail compatibility checks.
+- An unmodified stock Codex app, version **26.903.71938 (8576)**. Other builds fail compatibility checks.
 - A **Developer ID Application** signing certificate with its private key available in Keychain. Preparation requires this certificate; ad-hoc signing is not supported.
 
 The commands below use `/Applications/ChatGPT.app` as the stock source. If yours is elsewhere, add `--source "/absolute/path/to/ChatGPT.app"` to every `verify` and `prepare` command. The source must be stock Codex, not an existing Modex build.
@@ -46,7 +46,7 @@ bun run modex prepare --check --mods "$mods" --output "$HOME/Codex-Mods/first-bu
 bun run modex prepare --mods "$mods" --output "$HOME/Codex-Mods/first-build/Modex.app"
 ```
 
-These commands verify your selection, check the preparation inputs, then create a signed app at `~/Codex-Mods/first-build/Modex.app`. Preparation also creates and verifies a full stock-app backup beside it: `Original-26.901.51231-8109.zip`.
+These commands verify your selection, check the preparation inputs, then create a signed app at `~/Codex-Mods/first-build/Modex.app`. Preparation also creates and verifies a full stock-app backup beside it: `Original-26.903.71938-8576.zip`.
 
 Preparation does not install or launch the app. Output paths must be new, absolute `.app` paths outside Applications. Existing apps and backups are never overwritten. For another attempt, choose a new staging directory; to reuse a backup, pass `--backup` explicitly as shown in the update workflow below.
 
@@ -81,11 +81,11 @@ For an update built from the same stock app, reuse the backup from the first bui
 ```sh
 bun run modex prepare --check --mods "$mods" \
   --identity-from "$HOME/Applications/Modex.app" \
-  --backup "$HOME/Codex-Mods/first-build/Original-26.901.51231-8109.zip" \
+  --backup "$HOME/Codex-Mods/first-build/Original-26.903.71938-8576.zip" \
   --output "$HOME/Codex-Mods/update-1/Modex.app"
 bun run modex prepare --mods "$mods" \
   --identity-from "$HOME/Applications/Modex.app" \
-  --backup "$HOME/Codex-Mods/first-build/Original-26.901.51231-8109.zip" \
+  --backup "$HOME/Codex-Mods/first-build/Original-26.903.71938-8576.zip" \
   --output "$HOME/Codex-Mods/update-1/Modex.app"
 ```
 

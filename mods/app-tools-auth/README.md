@@ -15,6 +15,10 @@ Missing identities, invalid descriptors, unrelated ancestors, changed signatures
 
 `compatibility.json` gates the stock main bundle, native authorizer, CLI, and Node bytes. The transform changes one uniquely matched app-tools call site after the selected UI mods compose. Packaging compiles a separate Node-API addon, signs it with the same selected Developer ID, and seals it into the new app. The original vendor binaries are not modified.
 
+The transform locates the app-tools entrypoint by its ordered `callTool`, `listTools`, `pipePath`, and `socketPeerAuthorizer` parameter contract, capturing the zero-argument factory instead of hardcoding minified names. The same transform handles builds 8109 and 8576 plus renamed bindings. Missing, ambiguous, already-patched, or changed parameter contracts fail closed. Exact version and byte gates remain in place; structural matching does not automatically approve unknown stock versions.
+
+The 26.903.71938 (8576) adaptation changed the app-tools entrypoint from `mie` to `Cae` and the stock factory from `Tf` to `gd`. The stock factory's descriptor validation, packaged-mode checks, and native call contract are unchanged. The vendor authorizer's machine code and constant/string sections match build 8109; Node and CLI still carry the OpenAI team with identifiers `node` and `codex`. The fallback therefore retains its existing native validation. Real-bundle tests also check that the separate host-services and browser-use call sites keep their stock defaults.
+
 Build requirements: macOS Command Line Tools (`xcrun clang++`) and Node development headers installed under `/opt/homebrew/include/node` or `/usr/local/include/node`. The addon uses stable Node-API version 8. Run the normal root verifier and preparation commands; preparation `--check` validates these prerequisites before producing an app. Unsigned inspection packaging also requires the intended Developer ID so the compiled identity is concrete.
 
 Run `bun test mods/app-tools-auth` for adapter and native tests. Signed process-chain tests additionally require the configured Developer ID. Verify a staged app with an isolated profile before adoption: the `codex_app` MCP server must become ready and expose `read_thread`; merely loading the addon or passing a code-signature check is insufficient.
@@ -27,3 +31,5 @@ bun mods/app-tools-auth/verify-native.mjs \
 ```
 
 The signed verifier uses disposable copies and an isolated profile. It checks a successful vendor process chain and rejects the wrong host bundle, host team, peer signature, parent signature, and unrelated ancestor. It does not alter the installed app. The root verifier supplies the selected stock source to the real-bundle adapter test; that test is skipped in a plain test run without `APP_TOOLS_AUTH_SOURCE`.
+
+Set `APP_TOOLS_AUTH_PREVIOUS_ARCHIVE` to a pristine build 8109 `app.asar` when running the test suite to exercise the same transform against the previous real bundle as well. Vendor archives stay outside the repository.

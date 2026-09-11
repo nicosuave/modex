@@ -1,8 +1,8 @@
 # Theme Icon repair
 
 Start with ../../REPAIR.md. Current integration points are the initial renderer's
-MNo root appearance provider and mY color resolution, general settings' Io Dock
-row, and the main bundle's NRe Dock lifecycle and primary-window message handler.
+kBo root appearance provider and BY color resolution, general settings' Lo Dock
+row, and the main bundle's Dock lifecycle and primary-window message handler.
 Minified names are version-specific evidence, not stable APIs.
 
 Inspect new source around all callers before adapting the manifest. Check the

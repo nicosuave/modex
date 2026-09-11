@@ -1,10 +1,10 @@
 {
-  "version": "26.901.51231",
-  "build": "8109",
+  "version": "26.903.71938",
+  "build": "8576",
   "files": {
-    ".vite/build/main-BT6ViFC-.js": "ff6dac303dd188bddfdbfbfa43d0b04507dcf5136b773114970d73f9c2a9af01",
-    "webview/assets/app-initial-cadb12d4a15e.js": "73594359b28d81b6fcc9a52aac808f6a2e9fc32ced661adb3e23d297827b9285",
-    "webview/assets/general-settings-97f7ff015963.js": "6e323fbec11c5076e1dc03d1a878559e37dc65583c15957b6ffec610d6d8b2c4"
+    ".vite/build/main-Bkkz0ENj.js": "037076973c753515ef4329aa493f1072902cc638cbbcec788d81c87f392342f2",
+    "webview/assets/app-initial-a9514281e192.js": "038d28242240bb19fd90c7a380d80c6d23caaebc77a3ebb87ff6045bc49762c6",
+    "webview/assets/general-settings-3dd92695286f.js": "eb2a3443987843349eab9db9792a5c5a29748d77abeb35d666ba1ca7d2983b45"
   },
   "resources": {
     "icon-codex-dark-color.png": "69fb4384e161be8a20dcb94a9ac34aea4fbfaeb67514110a71e7b0732eccb0fc",

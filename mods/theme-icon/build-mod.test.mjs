@@ -34,3 +34,79 @@ test.skipIf(!process.env.THEME_ICON_BUNDLES)(
     assert.equal(module.exports.update({ appearance: 'invalid' }), false);
   },
 );
+
+test.skipIf(!process.env.THEME_ICON_BUNDLES)(
+  'stock Dock row binds native controls and enables the existing icon preference',
+  async () => {
+    const manifest = JSON.parse(fs.readFileSync(new URL('./compatibility.json', import.meta.url)));
+    const original = Object.fromEntries(
+      Object.keys(manifest.files).map((name) => [
+        name,
+        fs.readFileSync(path.join(process.env.THEME_ICON_BUNDLES, name), 'utf8'),
+      ]),
+    );
+    const patched = await transform(original);
+    const settings =
+      patched[Object.keys(original).find((name) => name.includes('/general-settings-'))];
+    const start = settings.indexOf('function Lo(){');
+    const end = settings.indexOf('function Ro(e){', start);
+    assert.ok(start >= 0 && end > start);
+    const Row = () => {},
+      Dropdown = () => {},
+      DropdownButton = () => {},
+      CheckIcon = () => {};
+    const Menu = {},
+      React = {},
+      store = {},
+      preference = { key: 'dock-icon-preference' };
+    const previews = { appDefault: 'stock', codexDark: 'dark', codexLight: 'light' };
+    const writes = [];
+    const jsx = (type, props) => ({ type, props });
+    const dependencies = {
+      Q: { c: () => [] },
+      c: () => store,
+      G: {},
+      V: () => ({ formatMessage: () => 'Dock icon' }),
+      y: () => ({ platform: 'darwin' }),
+      D: () => ({ data: { dockIconPreviews: previews } }),
+      Fe: {},
+      H: () => 'app-default',
+      it: { dockIconPreference: preference },
+      si: ({ dockIconPreviews }) => dockIconPreviews,
+      $: { jsx, jsxs: jsx, Fragment: 'fragment' },
+      x: () => {},
+      In: { ChatGPT: 'chatgpt', Codex: 'codex' },
+      Ro: () => {},
+      K: Row,
+      ThemeIconSettings: () => {},
+      $o: React,
+      he: Dropdown,
+      Ue: DropdownButton,
+      z: Menu,
+      xn: CheckIcon,
+      U: (...args) => writes.push(args),
+    };
+    const render = new Function(
+      ...Object.keys(dependencies),
+      `return (${settings.slice(start, end)});`,
+    )(...Object.values(dependencies));
+    const result = render();
+    assert.equal(result.props.children[0].type, Row);
+    const options = result.props.children[1].props;
+    assert.deepEqual(
+      [
+        options.React,
+        options.Row,
+        options.Dropdown,
+        options.DropdownButton,
+        options.Menu,
+        options.CheckIcon,
+      ],
+      [React, Row, Dropdown, DropdownButton, Menu, CheckIcon],
+    );
+    assert.equal(options.previews, previews);
+    assert.equal(options.enabled, false);
+    options.onEnable();
+    assert.deepEqual(writes, [[store, preference, 'codex-system']]);
+  },
+);

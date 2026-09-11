@@ -32,7 +32,7 @@ The existing **drop-to-reference** behavior takes priority over pane placement: 
 
 ## Build and verify
 
-The exact supported stock build is **26.901.51231 (8109)**. The [compatibility manifest](compatibility.json) gates the patched bundles by hash, and each transform requires a unique matching anchor. Unknown builds require a reviewed adaptation; do not change hashes alone or bypass the gate.
+The exact supported stock build is **26.903.71938 (8576)**. The [compatibility manifest](compatibility.json) gates the patched bundles by hash, and each transform requires a unique matching anchor. Unknown builds require a reviewed adaptation; do not change hashes alone or bypass the gate.
 
 Run from the repository root:
 

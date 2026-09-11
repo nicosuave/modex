@@ -60,16 +60,16 @@ for (const kind of ['local', 'cloud'])
       .slice(0, providerAdapter.indexOf('function ModexPaneShell'))
       .replace('export function', 'function');
     const Adapter = new Function(
+      'CT',
+      'uIs',
+      'qFs',
       'mT',
-      '$Ds',
-      'IDs',
-      'iT',
       'TaskPanesRuntime',
-      'Zw',
-      'pT',
-      'fT',
-      'JDs',
-      'NDs',
+      'sT',
+      'ST',
+      'xT',
+      'aIs',
+      'WFs',
       body + ';return ModexPaneProviders;',
     )(
       () => {},
@@ -128,8 +128,8 @@ test.skipIf(!root)(
   'transformed native composer registry never selects a hidden or unfocused pane',
   () => {
     const code = output()[files.initial],
-      start = code.indexOf('function iN(){'),
-      end = code.indexOf('function d5n(', start);
+      start = code.indexOf('function hN(){'),
+      end = code.indexOf('function _7n(', start);
     const range = code.slice(start, end);
     const element = (active, visible = true) => ({
       isConnected: true,
@@ -148,12 +148,12 @@ test.skipIf(!root)(
         [active, { isPrimaryComposer: true }],
       ]);
     const choose = new Function(
-      'aN',
-      'cN',
+      'gN',
+      'yN',
       'TaskPanesRuntime',
       'document',
-      'y5n',
-      range + ';return iN();',
+      'T7n',
+      range + ';return hN();',
     );
     expect(
       choose(
@@ -179,11 +179,11 @@ test.skipIf(!root)(
   'actual stock drag end still inserts references, while accepted pane drops cancel reordering',
   () => {
     const code = output()[files.primary],
-      start = code.indexOf('te=e=>{if(mEn(k.current,A.current)==null&&TaskPanesDrag.drop())'),
-      end = code.indexOf(',t[14]=a,t[15]=o,t[16]=s,t[17]=te', start);
+      start = code.indexOf('J=e=>{if(Hjn(O.current,k.current)==null&&TaskPanesDrag.drop())'),
+      end = code.indexOf(',t[15]=a,t[16]=o,t[17]=s,t[18]=J', start);
     expect(start).toBeGreaterThan(0);
     expect(end).toBeGreaterThan(start);
-    const handler = code.slice(start + 3, end);
+    const handler = code.slice(start + 2, end);
     for (const reference of [true, false]) {
       const drag = createDragCoordinator();
       let paneDrops = 0,
@@ -203,24 +203,25 @@ test.skipIf(!root)(
         thread = { threadId: 'a', threadKey: 'local:a' };
       const bindings = {
         TaskPanesDrag: drag,
-        mEn: () => (reference ? target : null),
-        ee: () => cancels++,
+        Hjn: () => (reference ? target : null),
+        q: () => cancels++,
         l: { current: null },
         S: () => {},
+        O: { current: 100 },
         k: { current: 100 },
-        A: { current: 100 },
-        EZ: (x) => x,
-        cEn: () => null,
-        D: { current: [thread] },
-        kCn: () => payload,
-        yZ: () => {},
-        SZ: () => {},
-        j: { current: null },
+        qJ: (x) => x,
+        Ljn: () => null,
+        E: { current: [thread] },
+        Ckn: () => payload,
+        RJ: () => {},
+        HJ: () => {},
+        A: { current: null },
         w: { current: null },
+        F: () => {},
         L: () => {},
         v: () => {},
         m: () => {},
-        hEn: (element, items) => {
+        Ujn: (element, items) => {
           expect(element).toBe(target);
           expect(items).toEqual(payload);
           references++;
@@ -250,8 +251,8 @@ test.skipIf(!root)(
   'stock reference lookup yields whole-panel hits only while the workspace accepts the task drag',
   () => {
     const code = output()[files.primary],
-      start = code.indexOf('function mEn('),
-      end = code.indexOf('function hEn(', start);
+      start = code.indexOf('function Hjn('),
+      end = code.indexOf('function Ujn(', start);
     class Element {
       closest() {
         return this;
@@ -264,9 +265,9 @@ test.skipIf(!root)(
       'TaskPanesDrag',
       'document',
       'HTMLElement',
-      'CZ',
-      'gEn',
-      code.slice(start, end) + ';return mEn;',
+      'WJ',
+      'UJ',
+      code.slice(start, end) + ';return Hjn;',
     )(
       { claims: () => accepts },
       { elementsFromPoint: () => [target] },

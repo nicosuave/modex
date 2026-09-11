@@ -1,12 +1,12 @@
 {
-  "version": "26.901.51231",
-  "build": "8109",
+  "version": "26.903.71938",
+  "build": "8576",
   "files": {
-    ".vite/build/main-BT6ViFC-.js": "ff6dac303dd188bddfdbfbfa43d0b04507dcf5136b773114970d73f9c2a9af01"
+    ".vite/build/main-Bkkz0ENj.js": "037076973c753515ef4329aa493f1072902cc638cbbcec788d81c87f392342f2"
   },
   "resources": {
-    "native/browser-use-peer-authorization.node": "3b01bba1b976095104c2c1643dddb1980487786aaf66e3f54908feb9dc2748ad",
-    "codex": "a30ec314bbd0e3721632234d07db7c99855db3b9f1e32dbe8c791947f07e7629",
-    "cua_node/bin/node": "a2f397892a25f0c0e2b6e764395be935d30c974c2c85e814acacb1bed6d2f42a"
+    "native/browser-use-peer-authorization.node": "0f781b0eef12e5c72751af0bb651ce6e68e48eff5e9bc0919317a3a33070a3e8",
+    "codex": "87a08119b8effa519f0ecb552dc98043f58a8200bf2ec5da60f76890c33e9c3a",
+    "cua_node/bin/node": "287669cfef6004be6c2071a0cf8e1753182b1768869ea5307d24a2f97704abc0"
   }
 }

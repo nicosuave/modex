@@ -86,7 +86,7 @@ test.skipIf(!fs.existsSync(stock))(
 );
 test('protocol hook preserves the stock handler for unrelated requests', async () => {
   const stock =
-    'function $e(e){rt(),o.protocol.handle(`app`,async t=>{let n=Ze(t.url,e);return n})}';
+    'function nt(e){ot(),o.protocol.handle(`app`,async t=>{let n=et(t.url,e);return n})}';
   let handler,
     ordinary = 0;
   const marked = new Response('module');
@@ -94,7 +94,7 @@ test('protocol hook preserves the stock handler for unrelated requests', async (
     responseFor: (request) =>
       request.url === 'app://-/assets/modex-development-theme-icon-runtime.mjs' ? marked : null,
   });
-  new Function('require', 'rt', 'o', 'Ze', transformProtocol(stock) + ';$e("root");')(
+  new Function('require', 'ot', 'o', 'et', transformProtocol(stock) + ';nt("root");')(
     require,
     () => {},
     { protocol: { handle: (_name, callback) => (handler = callback) } },
