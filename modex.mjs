@@ -8,6 +8,7 @@ export const HELP = `Usage: bun run modex <update|verify|prepare|status|dev> [op
   --mods LIST                    Complete selection (default: model-spread,theme-icon)
   --source APP                   Supported stock app (default /Applications/ChatGPT.app)
   --dev-root DIRECTORY           Verify/prepare with explicit external development modules
+  --current-source               Verify/prepare current stock without a version/hash allowlist
   --help                         Show help
 
 prepare options:
@@ -20,12 +21,11 @@ update options:
   --app APP                      Installed app (auto-detects /Applications or ~/Applications)
   --source APP                   Stock source (default /Applications/ChatGPT.app)
   --backup ZIP                   Reuse a verified stock backup instead of creating one
-  --check                        Read-only preflight; no build or installation
-  --stage-only                   Build and verify without installing
-  --wait-seconds SECONDS          Wait for Modex to close (default 600; never quits it)
+  --output APP                   New absolute staging path (default under work/updates)
+  --check                        Read-only preflight; no build
 
-Update preserves installed mods, identity and development configuration. It installs
-only after Modex closes, preserves the previous app, and does not launch either app.
+Update patches current stock into a NEW signed copy, preserving installed mods,
+identity and development configuration. It never installs, replaces, quits or launches apps.
 
 status options:
   --app APP                      Installed app (default ~/Applications/Modex.app)
@@ -70,7 +70,7 @@ export function parseArgs(args) {
     }
     if (
       (flag === '--check' && ['prepare', 'update'].includes(command)) ||
-      (flag === '--stage-only' && command === 'update')
+      (flag === '--current-source' && ['prepare', 'verify'].includes(command))
     ) {
       result.args.push(flag);
       continue;
@@ -80,7 +80,7 @@ export function parseArgs(args) {
       continue;
     }
     const valueFlags = {
-      update: ['--app', '--source', '--backup', '--wait-seconds'],
+      update: ['--app', '--source', '--backup', '--output'],
       verify: ['--source', '--mods', '--dev-root'],
       prepare: ['--source', '--mods', '--output', '--backup', '--identity-from', '--dev-root'],
       status: ['--app'],

@@ -152,13 +152,19 @@ test('update accepts only preservation-oriented options', () => {
     '/Stock.app',
     '--backup',
     '/Original.zip',
-    '--wait-seconds',
-    '30',
-    '--stage-only',
+    '--output',
+    '/new/Modex.app',
   ];
   assert.deepEqual(parseArgs(['update', ...flags]).args, flags);
   assert.deepEqual(parseArgs(['update', '--check']).args, ['--check']);
-  for (const flag of ['--mods', '--identity-from', '--dev-root', '--output'])
+  for (const flag of ['--mods', '--identity-from', '--dev-root', '--wait-seconds', '--stage-only'])
     assert.throws(() => parseArgs(['update', flag, 'value']));
   assert.throws(() => parseArgs(['update', '--app']));
+});
+
+test('current-source is an explicit boolean for verify and prepare', () => {
+  for (const command of ['verify', 'prepare'])
+    assert.deepEqual(parseArgs([command, '--current-source']).args, ['--current-source']);
+  for (const command of ['update', 'status', 'dev'])
+    assert.throws(() => parseArgs([command, '--current-source']));
 });

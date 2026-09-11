@@ -8,9 +8,15 @@ import { entryFor } from '../../lib/asar.mjs';
 import { compatibilityFor, selectMods, componentManifests } from './compatibility.mjs';
 import { transform } from './build-mod.mjs';
 import { verifyRepair, repairOverlay } from '../app-tools-auth/patch.mjs';
+import { actualBundles, canonicalBundles, resolveBundlePaths } from '../../lib/current-source.mjs';
 export async function main(args = process.argv.slice(2), { mods } = {}) {
   const options = {};
   for (let i = 0; i < args.length; i += 2) {
+    if (args[i] === '--current-source') {
+      options.currentSource = true;
+      i--;
+      continue;
+    }
     if (
       !['--source', '--dev-root'].includes(args[i]) ||
       !args[i + 1] ||
@@ -26,27 +32,41 @@ export async function main(args = process.argv.slice(2), { mods } = {}) {
     compatibility = compatibilityFor(selected);
   console.log(`Selected mods: ${selected.join(', ')}`);
   const source = options['--source'] ?? '/Applications/ChatGPT.app';
-  verifyRepair(source);
+  const currentSource = options.currentSource === true;
+  verifyRepair(source, { currentSource });
   execFileSync('/usr/bin/codesign', ['--verify', '--deep', '--strict', source], { stdio: 'pipe' });
-  const { archive, bundles } = inspectCompatibility(source, compatibility);
+  const { archive, bundles, paths, info } = inspectCompatibility(source, compatibility, {
+    currentSource,
+  });
   const originals = Object.fromEntries(
     [...bundles].map(([name, bytes]) => [name, bytes.toString()]),
   );
   const build = async () => {
-    const output = await transform(originals, selected);
+    const output = actualBundles(await transform(originals, selected), paths);
     if (!options['--dev-root']) return output;
     const replacements = new Map(
       Object.entries(output).map(([name, content]) => [name, Buffer.from(content)]),
     );
-    repairOverlay(source, replacements);
-    const { applyDevelopment, readDevelopmentProtocol } = await import('../development/patch.mjs');
+    repairOverlay(source, replacements, { currentSource });
+    const { applyDevelopment, readDevelopmentProtocol, protocolPath } =
+      await import('../development/patch.mjs');
+    const { mainPath } = await import('../app-tools-auth/patch.mjs');
+    const devPaths = currentSource
+      ? resolveBundlePaths(archive, [mainPath, protocolPath])
+      : new Map();
+    const devReplacements = new Map(
+      Object.entries(canonicalBundles(Object.fromEntries(replacements), devPaths)).map(
+        ([name, value]) => [name, Buffer.from(value)],
+      ),
+    );
     await applyDevelopment(
-      replacements,
+      devReplacements,
       options['--dev-root'],
       selected,
-      readDevelopmentProtocol(source),
+      readDevelopmentProtocol(source, { currentSource }),
+      { currentSource },
     );
-    return Object.fromEntries([...replacements].map(([name, bytes]) => [name, bytes.toString()]));
+    return actualBundles(Object.fromEntries(devReplacements), devPaths);
   };
   const first = await build(),
     second = await build();
@@ -58,7 +78,9 @@ export async function main(args = process.argv.slice(2), { mods } = {}) {
     const { rendererSource } = await import('../development/main.mjs');
     const { rendererModules } = await import('../development/contract.mjs');
     const { readModule } = await import('../development/validation.mjs');
-    const manifest = inspectDevelopmentForBuild(options['--dev-root'], selected, source);
+    const manifest = inspectDevelopmentForBuild(options['--dev-root'], selected, source, {
+      currentSource,
+    });
     for (const id of Object.keys(rendererModules))
       if (manifest.modules[id]) {
         virtual[`webview/assets/modex-development-${id}.mjs`] = rendererSource(
@@ -68,6 +90,11 @@ export async function main(args = process.argv.slice(2), { mods } = {}) {
       }
   }
   const parser = new Bun.Transpiler({ loader: 'js' });
+  const knownPreloadOwner = '.vite/build/window-all-closed-DnjtB60s.js';
+  const preloadOwner =
+    currentSource && options['--dev-root']
+      ? resolveBundlePaths(archive, [knownPreloadOwner]).get(knownPreloadOwner)
+      : knownPreloadOwner;
   for (const [name, content] of Object.entries({ ...first, ...virtual })) {
     parser.transformSync(content);
     for (const item of parser.scan(content).imports) {
@@ -75,7 +102,7 @@ export async function main(args = process.argv.slice(2), { mods } = {}) {
       // This verified stock Sentry helper catches failed resolution and uses its
       // alternative preload path. It is not an import introduced by the mod.
       if (
-        name === '.vite/build/window-all-closed-DnjtB60s.js' &&
+        name === preloadOwner &&
         item.kind === 'require-resolve' &&
         item.path === '../../preload/default.js'
       )
@@ -96,7 +123,11 @@ export async function main(args = process.argv.slice(2), { mods } = {}) {
       fs.mkdirSync(path.dirname(target), { recursive: true });
       fs.writeFileSync(target, bytes);
     }
-    const env = { ...process.env, APP_TOOLS_AUTH_SOURCE: source };
+    const env = {
+      ...process.env,
+      APP_TOOLS_AUTH_SOURCE: source,
+      APP_TOOLS_AUTH_CURRENT_SOURCE: currentSource ? '1' : '',
+    };
     // Only fixtures for this verified source/selection may activate integration tests.
     delete env.MODEL_SPREAD_BUNDLES;
     delete env.THEME_ICON_BUNDLES;
@@ -142,8 +173,8 @@ export async function main(args = process.argv.slice(2), { mods } = {}) {
       {
         verified: true,
         mods: selected,
-        version: compatibility.version,
-        build: compatibility.build,
+        version: info.CFBundleShortVersionString,
+        build: info.CFBundleVersion,
         deterministic: true,
         syntaxAndImports: true,
         overlayFiles: Object.keys(first).length,

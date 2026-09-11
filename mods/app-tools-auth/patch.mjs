@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import { inspectCompatibility } from '../../lib/prepare-mod.mjs';
+import { rewriteBundleNames } from '../../lib/current-source.mjs';
 
 export const manifest = JSON.parse(
   fs.readFileSync(new URL('./compatibility.json', import.meta.url), 'utf8'),
@@ -28,22 +29,28 @@ export function transform(main) {
   return main.slice(0, match.index) + replacement + main.slice(match.index + match[0].length);
 }
 
-export function repairOverlay(source, replacements) {
+export function repairOverlay(source, replacements, options = {}) {
   // Validate pristine stock even when an earlier selected mod changed main.
-  const { bundles } = inspectCompatibility(source, manifest);
-  const input = replacements.get(mainPath) ?? bundles.get(mainPath);
+  const { bundles, paths } = inspectCompatibility(source, manifest, options);
+  const target = paths.get(mainPath) ?? mainPath;
+  const input =
+    replacements.get(target) ?? Buffer.from(rewriteBundleNames(bundles.get(mainPath), paths, true));
   if (replacements.has(runtimePath)) throw Error('App-tools authorization runtime already present');
   const patched = transform(input.toString('utf8'));
   new Bun.Transpiler({ loader: 'js' }).transformSync(patched);
-  replacements.set(mainPath, Buffer.from(patched));
+  replacements.set(target, Buffer.from(patched));
   replacements.set(runtimePath, fs.readFileSync(new URL('./runtime.cjs', import.meta.url)));
 }
 
-export function verifyRepair(source) {
-  const { bundles } = inspectCompatibility(source, manifest);
+export function verifyRepair(source, options = {}) {
+  const { bundles, info } = inspectCompatibility(source, manifest, options);
   const input = bundles.get(mainPath).toString('utf8');
   const first = transform(input);
   if (first !== transform(input)) throw Error('Nondeterministic app-tools authorization transform');
   new Bun.Transpiler({ loader: 'js' }).transformSync(first);
-  return { appToolsAuthorization: 'verified', version: manifest.version, build: manifest.build };
+  return {
+    appToolsAuthorization: 'verified',
+    version: info.CFBundleShortVersionString,
+    build: info.CFBundleVersion,
+  };
 }

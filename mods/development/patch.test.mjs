@@ -59,8 +59,9 @@ test.skipIf(!fs.existsSync(stock))(
         [mainPath, Buffer.from('const originalMain=true;')],
         ['webview/assets/theme-icon-runtime.mjs', original],
       ]);
-      const protocol = readDevelopmentProtocol(stock);
-      await applyDevelopment(replacements, root, ['theme-icon'], protocol);
+      const currentSource = process.env.APP_TOOLS_AUTH_CURRENT_SOURCE === '1';
+      const protocol = readDevelopmentProtocol(stock, { currentSource });
+      await applyDevelopment(replacements, root, ['theme-icon'], protocol, { currentSource });
       assert.deepEqual(replacements.get('webview/assets/theme-icon-runtime-bundled.mjs'), original);
       assert.match(replacements.get(mainPath).toString(), /onIconRenderer/);
       assert.ok(replacements.get(mainPath).toString().includes(JSON.stringify(root)));
