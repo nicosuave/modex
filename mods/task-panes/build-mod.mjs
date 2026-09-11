@@ -114,6 +114,13 @@ export function transform(bundles) {
   output[files.initial] += providerAdapter;
   output[files.primary] =
     'import {drag as TaskPanesDrag} from "./task-panes-drag.mjs";' + output[files.primary];
+  // Priority and date-grouped rows have no stock drag wrapper. Reuse the
+  // non-sortable task wrapper; pinned rows already have their own sortable one.
+  patch(
+    files.primary,
+    'function epr(e){let{key:t,row:n}=e;return(0,h4.jsx)(`div`,{role:`listitem`,children:n},t)}',
+    'function epr(e){let{key:t,row:n}=e;const threadKey=Cy(t);return threadKey==null?(0,h4.jsx)(`div`,{role:`listitem`,children:n},t):(0,h4.jsx)(nY,{threadKey,children:n},t)}',
+  );
   patch(
     files.primary,
     'function Hjn(e,t,n){if(e==null||t==null||document.elementsFromPoint==null)return null;',

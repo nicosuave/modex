@@ -125,6 +125,95 @@ function output() {
   return patched;
 }
 test.skipIf(!root)(
+  'tall Priority and dated rows use native task drags without changing other rows',
+  () => {
+    const code = output()[files.primary];
+    const extract = (start, end) => code.slice(code.indexOf(start), code.indexOf(end));
+    const jsx = (type, props, key) => ({ type, props, key });
+    const nativeDragRow = () => {};
+    const decode = (key) => {
+      const value = key.replace(/^codex:thread:/, '');
+      return /^(local|remote):/.test(value) ? value : null;
+    };
+    const renderRow = new Function(
+      'Cy',
+      'h4',
+      'nY',
+      extract('function epr(', 'function tpr(') + ';return epr;',
+    )(decode, { jsx }, nativeDragRow);
+    for (const key of ['local:task-a', 'local:ssh-task', 'remote:cloud-a']) {
+      const row = { title: key, secondaryContent: 'project and host' };
+      const rendered = renderRow({ key: `codex:thread:${key}`, row });
+      expect(rendered.type).toBe(nativeDragRow);
+      expect(rendered.props).toEqual({ threadKey: key, children: row });
+      expect(rendered.key).toBe(`codex:thread:${key}`);
+    }
+    for (const key of ['chatgpt:conversation:a', 'codex:project:a', 'content-tab:a']) {
+      const row = { title: key };
+      expect(renderRow({ key, row })).toEqual({
+        type: 'div',
+        props: { role: 'listitem', children: row },
+        key,
+      });
+    }
+  },
+);
+
+test.skipIf(!root)(
+  'native tall-row drag payload retains local, SSH, and cloud task identity',
+  () => {
+    const code = output()[files.primary];
+    const body = code.slice(code.indexOf('function DMn('), code.indexOf('function kMn('));
+    for (const entry of [
+      { kind: 'local', conversationId: 'task-a', hostId: 'local', catalogTitle: 'Local task' },
+      {
+        kind: 'local',
+        conversationId: 'ssh-task',
+        hostId: 'nicbook-atm',
+        catalogTitle: 'SSH task',
+      },
+      { kind: 'remote', task: { id: 'cloud-a' } },
+    ]) {
+      let payload;
+      const key =
+        entry.kind === 'local' ? `local:${entry.conversationId}` : `remote:${entry.task.id}`;
+      const bindings = {
+        rY: { c: (length) => Array(length).fill(Symbol.for('react.memo_cache_sentinel')) },
+        iY: { useContext: (context) => context },
+        Rq: [],
+        Vq: false,
+        jm: (atom) => (atom === 'entry' ? entry : null),
+        Wu: 'entry',
+        kS: 'title',
+        qx: 'local',
+        eY: (value) => (value.kind === 'local' ? value.conversationId : value.task.id),
+        rE: () => null,
+        DS: (kind) => kind,
+        aY: { jsx: (type, props) => ({ type, props }) },
+        $J: () => {},
+        Z: (...values) => values.filter(Boolean).join(' '),
+        Uw: { Translate: { toString: () => undefined } },
+        noe: (options) => {
+          payload = options.data.thread;
+          return { attributes: {}, listeners: { onPointerDown: () => {} }, isDragging: false };
+        },
+      };
+      const render = new Function(...Object.keys(bindings), body + ';return DMn;')(
+        ...Object.values(bindings),
+      );
+      const row = render({ threadKey: key, containerId: null, children: 'Tall row' });
+      expect(row.props.children.props.onPointerDown).toBeFunction();
+      expect(payload.threadKey).toBe(key);
+      expect(payload.threadId).toBe(entry.conversationId ?? entry.task.id);
+      expect(payload.containerId).toBeNull();
+      if (entry.kind === 'local') {
+        expect(payload.threadReference.hostId).toBe(entry.hostId);
+        expect(payload.threadReference.getTitle()).toBe(entry.catalogTitle);
+      } else expect(payload.threadReference).toBeNull();
+    }
+  },
+);
+test.skipIf(!root)(
   'transformed native composer registry never selects a hidden or unfocused pane',
   () => {
     const code = output()[files.initial],

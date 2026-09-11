@@ -6,6 +6,8 @@ Task Panes adds split panes and tab groups to Codex tasks. Select it with `--mod
 
 Open a task, then drag another task from the sidebar into the conversation area. The drop preview shows where it will go:
 
+Dragging works from compact rows and tall rows, including Priority, date-grouped, and pinned tasks.
+
 | Target or control | Behavior |
 | --- | --- |
 | Left, right, top, or bottom edge | Split the target pane in that direction |
