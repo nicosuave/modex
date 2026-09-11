@@ -65,6 +65,38 @@ See the mod guides linked above for their controls and configuration. To return 
 
 ## Update Modex
 
+After updating the stock app, run this from a current Modex checkout:
+
+```sh
+bun run modex update
+```
+
+The command detects Modex in `/Applications` or `~/Applications`, reads its enabled
+mods, installs dependencies from the lockfile, runs the verifier and preparation
+checks, and builds a signed replacement with the same bundle ID and signing team.
+If both locations contain Modex, choose one with `--app /Applications/Modex.app`.
+It preserves a configured development-module directory as well.
+
+Once the build is ready, it waits up to ten minutes for you to close Modex, installs
+the replacement at the same path, and prints the preserved previous-app location.
+It never quits or launches an app. Close stock Codex before reopening Modex if both
+use your normal profile. Settings and authentication stay in their existing locations.
+
+Use `--check` for read-only preflight, `--stage-only` to build without installing,
+or `--wait-seconds 3600` for a longer wait. `--source` selects a different stock app;
+`--backup` reuses an existing stock ZIP after validation. New staging apps, stock
+backups, and previous installed copies are kept under `work/updates/` in this checkout.
+Preserved builds are not automatically deleted. Installation requires write access
+to the installed app's parent directory and the same volume as the staging directory.
+
+This command uses the current checkout; it does not pull Git changes or operate the
+stock updater. Unknown stock versions stop at the compatibility gate before replacing
+Modex and still require a reviewed adaptation. A failed or cancelled build leaves the
+installed app in place. If the close wait times out, the staged app is retained and
+can be installed using the manual steps below, or you can rerun the command.
+
+### Manual build and installation
+
 From your repository checkout, update the source, install dependencies, and verify the mods. For a clean checkout on `main`:
 
 ```sh

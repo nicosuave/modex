@@ -143,3 +143,22 @@ test('custom CLI can be selected alone or with task panes without changing defau
   ]);
   assert.deepEqual(parseArgs(['verify']).mods, both);
 });
+
+test('update accepts only preservation-oriented options', () => {
+  const flags = [
+    '--app',
+    '/Applications/Modex.app',
+    '--source',
+    '/Stock.app',
+    '--backup',
+    '/Original.zip',
+    '--wait-seconds',
+    '30',
+    '--stage-only',
+  ];
+  assert.deepEqual(parseArgs(['update', ...flags]).args, flags);
+  assert.deepEqual(parseArgs(['update', '--check']).args, ['--check']);
+  for (const flag of ['--mods', '--identity-from', '--dev-root', '--output'])
+    assert.throws(() => parseArgs(['update', flag, 'value']));
+  assert.throws(() => parseArgs(['update', '--app']));
+});

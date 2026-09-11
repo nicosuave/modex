@@ -3,7 +3,7 @@ import { selectMods, defaultMods } from './mods/combined/compatibility.mjs';
 import path from 'node:path';
 import os from 'node:os';
 
-export const HELP = `Usage: bun run modex <verify|prepare|status|dev> [options]
+export const HELP = `Usage: bun run modex <update|verify|prepare|status|dev> [options]
 
   --mods LIST                    Complete selection (default: model-spread,theme-icon)
   --source APP                   Supported stock app (default /Applications/ChatGPT.app)
@@ -15,6 +15,17 @@ prepare options:
   --identity-from APP            Installed app to preserve identity and check enabled mods
   --backup ZIP                   Explicitly verify/reuse an original-app backup
   --check                        Read-only preparation checks
+
+update options:
+  --app APP                      Installed app (auto-detects /Applications or ~/Applications)
+  --source APP                   Stock source (default /Applications/ChatGPT.app)
+  --backup ZIP                   Reuse a verified stock backup instead of creating one
+  --check                        Read-only preflight; no build or installation
+  --stage-only                   Build and verify without installing
+  --wait-seconds SECONDS          Wait for Modex to close (default 600; never quits it)
+
+Update preserves installed mods, identity and development configuration. It installs
+only after Modex closes, preserves the previous app, and does not launch either app.
 
 status options:
   --app APP                      Installed app (default ~/Applications/Modex.app)
@@ -39,8 +50,8 @@ the signed app; it never installs, launches, overwrites, or quits an app.
 export function parseArgs(args) {
   if (args.length === 1 && args[0] === '--help') return { help: true };
   const [command, ...rest] = args;
-  if (!['verify', 'prepare', 'status', 'dev'].includes(command))
-    throw Error('Expected verify, prepare, status or dev; use --help for usage');
+  if (!['update', 'verify', 'prepare', 'status', 'dev'].includes(command))
+    throw Error('Expected update, verify, prepare, status or dev; use --help for usage');
   const result = {
     command,
     mods: [...defaultMods],
@@ -57,7 +68,10 @@ export function parseArgs(args) {
       result.help = true;
       continue;
     }
-    if (flag === '--check' && command === 'prepare') {
+    if (
+      (flag === '--check' && ['prepare', 'update'].includes(command)) ||
+      (flag === '--stage-only' && command === 'update')
+    ) {
       result.args.push(flag);
       continue;
     }
@@ -66,6 +80,7 @@ export function parseArgs(args) {
       continue;
     }
     const valueFlags = {
+      update: ['--app', '--source', '--backup', '--wait-seconds'],
       verify: ['--source', '--mods', '--dev-root'],
       prepare: ['--source', '--mods', '--output', '--backup', '--identity-from', '--dev-root'],
       status: ['--app'],
@@ -84,6 +99,10 @@ export function parseArgs(args) {
 export async function main(args = process.argv.slice(2)) {
   const options = parseArgs(args);
   if (options.help) return console.log(HELP);
+  if (options.command === 'update') {
+    const { updateMain } = await import('./lib/update-mod.mjs');
+    return updateMain(options.args);
+  }
   if (options.command === 'status') {
     const { readStatus } = await import('./lib/status.mjs');
     const { legacyMarkers } = await import('./mods/combined/compatibility.mjs');
