@@ -71,20 +71,20 @@ test.skipIf(!process.env.COMBINED_BUNDLES)(
     expect(await transform(original)).toEqual(result);
     const initial =
       result[Object.keys(result).find((name) => name.startsWith('webview/assets/app-initial-'))];
-    const start = initial.indexOf('oe=V.reasoningEffort;if(ie'),
-      end = initial.indexOf('let se=$$a(', start);
+    const start = initial.indexOf('oe=te.reasoningEffort;if(ie'),
+      end = initial.indexOf('let se=B8a(', start);
     expect(start).toBeGreaterThanOrEqual(0);
     expect(end).toBeGreaterThan(start);
     const normalize = new Function(
-      'V',
+      'te',
       'ie',
       'ae',
-      'oQa',
+      'q3a',
       'F',
       're',
-      'r1a',
-      'n1a',
-      'PT',
+      'W8a',
+      'U8a',
+      'Jx',
       `let ${initial.slice(start, end)};return oe;`,
     );
     const stock = ['low', 'medium', 'xhigh'].map((reasoningEffort) => ({
@@ -106,13 +106,13 @@ test.skipIf(!process.env.COMBINED_BUNDLES)(
         );
         expect(value).toBe(custom ? reasoningEffort : 'xhigh');
       }
-    const hook = initial.match(/ThemeIconRuntime\.useTheme\(O3,\{[^;]+\}\);/)?.[0];
+    const hook = initial.match(/ThemeIconRuntime\.useTheme\(u6,\{[^;]+\}\);/)?.[0];
     expect(hook).toBeDefined();
     const light = { fonts: { codeFace: 'light' } },
       dark = { fonts: { codeFace: 'dark' } };
     for (const appearance of ['light', 'dark']) {
       let observed;
-      new Function('ThemeIconRuntime', 'O3', 'b', 's', 'iO', 'Iv', 'PT', 'FT', 'TSn', 'U', hook)(
+      new Function('ThemeIconRuntime', 'u6', 'b', 's', 'aO', 'xv', 'Jx', 'Yx', 'W1t', 'H', hook)(
         { useTheme: (react, options) => (observed = options) },
         {},
         appearance === 'light' ? light : dark,

@@ -1,12 +1,12 @@
 export function ModelSpreadSettings({ hostId = 'local', row: Row }) {
-  OLr();
+  Yqr();
   const settings = ModelSpreadMod.useSettings(S7);
-  const scope = zx(yi);
-  const { data } = ZS({ hostId });
+  const scope = Oe(Ke);
+  const { data } = gO({ hostId });
   const models = data?.models ?? [];
   const defaults = ModelSpreadMod.defaultChoices(
     hostId,
-    wn(models, { includeUltraInSlider: false }),
+    IIe(models, { includeUltraInSlider: false }),
   );
   const N = MSNative();
   const trigger = S7.createElement(
@@ -21,14 +21,14 @@ export function ModelSpreadSettings({ hostId = 'local', row: Row }) {
     models,
     defaults,
     trigger,
-    onSave: () => scope.set(Qm, 'default'),
+    onSave: () => scope.set($w, 'default'),
     modelLabel: (slot) =>
-      S7.createElement(R4, {
+      S7.createElement(I4, {
         model: slot.model,
         displayName: slot.modelLabel,
         stripGptPrefix: false,
       }),
-    effortLabel: (effort) => S7.createElement(X, { ...I4[effort] }),
+    effortLabel: (effort) => S7.createElement(X, { ...P4[effort] }),
   });
   return Row
     ? S7.createElement(Row, {
@@ -57,7 +57,7 @@ function ModelSpreadSlotPicker({ models, slot, onChange }) {
   const [open, setOpen] = S7.useState(false);
   const N = MSNative();
   const options = models.map((model) => ({ model, disabledReason: null }));
-  const choices = vue(models, { stripGptPrefix: false }).map((choice, index) => ({
+  const choices = TAe(models, { stripGptPrefix: false }).map((choice, index) => ({
     ...choice,
     powerSettingIndex: index,
   }));
@@ -73,7 +73,7 @@ function ModelSpreadSlotPicker({ models, slot, onChange }) {
         alignItems: 'center',
       },
     },
-    S7.createElement(PIr, {
+    S7.createElement(tqr, {
       align: 'end',
       models,
       modelOptions: options,
@@ -96,7 +96,7 @@ function ModelSpreadSlotPicker({ models, slot, onChange }) {
       triggerButton: S7.createElement(
         N.SettingsTrigger,
         { 'aria-label': 'Slot model', style: { width: 'fit-content', maxWidth: '100%' } },
-        S7.createElement(R4, {
+        S7.createElement(I4, {
           model: slot.model,
           displayName: model?.displayName,
           stripGptPrefix: false,
@@ -111,7 +111,7 @@ function ModelSpreadSlotPicker({ models, slot, onChange }) {
         triggerButton: S7.createElement(
           N.SettingsTrigger,
           { 'aria-label': 'Reasoning level', style: { width: '100%' } },
-          S7.createElement(X, { ...I4[slot.reasoningEffort] }),
+          S7.createElement(X, { ...P4[slot.reasoningEffort] }),
         ),
       },
       model?.supportedReasoningEfforts.map((e) =>
@@ -121,12 +121,15 @@ function ModelSpreadSlotPicker({ models, slot, onChange }) {
             key: e.reasoningEffort,
             role: 'menuitemradio',
             'aria-checked': e.reasoningEffort === slot.reasoningEffort,
-            RightIcon: e.reasoningEffort === slot.reasoningEffort ? Iv : undefined,
+            RightIcon: e.reasoningEffort === slot.reasoningEffort ? jT : undefined,
             onSelect: () => onChange({ ...slot, reasoningEffort: e.reasoningEffort }),
           },
-          S7.createElement(X, { ...I4[e.reasoningEffort] }),
+          S7.createElement(X, { ...P4[e.reasoningEffort] }),
         ),
       ),
     ),
   );
 }
+
+// Selectable rows moved from a standalone chunk into the native primary bundle.
+export { bKn as ModelSpreadSelectableRow, SKn as initializeModelSpreadSelectableRow };

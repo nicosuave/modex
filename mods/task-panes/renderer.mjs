@@ -1,11 +1,11 @@
 const renderers = new WeakMap();
 const defaultLoaders = {
   local: () =>
-    import('./local-conversation-page-fc339fa9c34d.js').then((module) => ({
+    import('./local-conversation-page-4f23a630b0af.js').then((module) => ({
       default: module.ModexLocalPaneTask,
     })),
   cloud: () =>
-    import('./remote-conversation-page-4a5925193bd5.js').then((module) => ({
+    import('./remote-conversation-page-f76463019395.js').then((module) => ({
       default: module.ModexCloudPaneTask,
     })),
 };

@@ -1,4 +1,4 @@
-import { pqt as initialize, fqt as read, hqt as write, Kun as bridge } from './__INITIAL__';
+import { X2t as initialize, Y2t as read, $2t as write, xmn as bridge } from './__INITIAL__';
 export const storage = {
   getItem(key) {
     initialize();

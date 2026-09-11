@@ -5,7 +5,7 @@ resolved accent and background colors. Custom theme colors and ChatGPT accent
 changes flow through the same native theme resolver; there are no separate icon
 color fields or theme-name presets.
 
-Supported stock app: **26.901.51231 (8109)**. `compatibility.json` gates the exact
+Supported stock app: **26.903.71938 (8576)**. `compatibility.json` gates the exact
 renderer/main bundles and original icon assets. `mod.json` owns the stable
 `local.codex.theme-icon` identity and **Modex** app name.
 

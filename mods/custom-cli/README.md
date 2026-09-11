@@ -28,7 +28,7 @@ The supported bundled CLI rejects `--profile` for `app-server`. Use configuratio
 
 ## Build
 
-Follow the root [build instructions](../../README.md#first-build) with `mods="custom-cli"`, or combine it with other mods, such as `mods="task-panes,custom-cli"`. Supported stock source: **26.901.51231 (8109)**.
+Follow the root [build instructions](../../README.md#first-build) with `mods="custom-cli"`, or combine it with other mods, such as `mods="task-panes,custom-cli"`. Supported stock source: **26.903.71938 (8576)**.
 
 ```sh
 bun run modex verify --mods custom-cli

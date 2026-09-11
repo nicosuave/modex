@@ -2,7 +2,7 @@
 
 A Codex app mod with an ordered list of model + reasoning pairs shared by the composer slider and the Codex Micro knob.
 
-Supported stock app: **26.901.51231 (8109)**. `compatibility.json` owns the exact source hashes; `mod.json` keeps the feature name **Model Spread** separate from the app name **Modex**, and owns its stable bundle ID.
+Supported stock app: **26.903.71938 (8576)**. `compatibility.json` owns the exact source hashes; `mod.json` keeps the feature name **Model Spread** separate from the app name **Modex**, and owns its stable bundle ID.
 
 ## Features
 
@@ -65,6 +65,17 @@ The isolated profile does not import authentication or settings. Double-clicking
 ## Development
 
 `build-mod.mjs` applies checked renderer transforms, and `*.template.*` adapt the native UI, storage, composer, and Micro interfaces. `prepare-mod.mjs` handles this mod's compatibility and backup workflow, then calls the shared packaging utilities. `verify-mod.mjs` verifies hashes, deterministic transforms, generated imports, and tests against local stock bundles.
+
+`source-hooks.mjs` captures local bindings for usage banners, selection-mode reconciliation,
+experiment exposure, and Micro reasoning dispatch from their native operations. These hooks
+reject missing or ambiguous matches instead of depending on particular minified names.
+Other adapters still require version-specific review. To check these hooks against multiple
+local stock archives without changing the packaging allowlist:
+
+```sh
+MODEL_SPREAD_REGRESSION_ARCHIVES="/absolute/old/app.asar:/absolute/new/app.asar" \
+  bun test mods/model-spread/source-hooks.test.mjs
+```
 
 ```sh
 bun mods/model-spread/build-mod.mjs BUNDLE_DIRECTORY OVERLAY_DIRECTORY

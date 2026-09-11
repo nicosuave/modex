@@ -27,21 +27,21 @@ test(
     const initial = Object.keys(bundles).find((name) => name.startsWith('app-initial-'));
     const patched = transform(bundles);
     function normalize(source) {
-      const start = source.indexOf('oe=V.reasoningEffort;if(ie');
-      const end = source.indexOf('let se=$$a(', start);
+      const start = source.indexOf('oe=te.reasoningEffort;if(ie');
+      const end = source.indexOf('let se=B8a(', start);
       assert.ok(start >= 0 && end > start);
       // Execute the shipped post-save normalization block, with the stock preset
-      // supplied at its existing oQa dependency boundary.
+      // supplied at its existing q3a dependency boundary.
       return new Function(
-        'V',
+        'te',
         'ie',
         'ae',
-        'oQa',
+        'q3a',
         'F',
         're',
-        'r1a',
-        'n1a',
-        'PT',
+        'W8a',
+        'U8a',
+        'Jx',
         `let ${source.slice(start, end)};return oe;`,
       );
     }

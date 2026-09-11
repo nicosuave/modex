@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
-export const MAIN = '.vite/build/main-BT6ViFC-.js';
-export const SOURCE = '.vite/build/src-VqXTPopo.js';
-export const CONNECT = 't=await pU(this.options,e);if(!t)';
+export const MAIN = '.vite/build/main-Bkkz0ENj.js';
+export const SOURCE = '.vite/build/src-B6LqG3ek.js';
+export const CONNECT = 't=await aU(this.options,e);if(!t)';
 export const DAEMON = 'process.env.CODEX_APP_SERVER_USE_LOCAL_DAEMON===`1`&&';
 export function replaceOnce(source, anchor, replacement) {
   if (typeof source !== 'string' || source.split(anchor).length !== 2)
@@ -24,7 +24,7 @@ export async function transform(bundles) {
       replaceOnce(
         output[SOURCE],
         CONNECT,
-        't=ModexCustomCli.applyLaunch(await pU(this.options,e),this.options.hostConfig);if(!t)',
+        't=ModexCustomCli.applyLaunch(await aU(this.options,e),this.options.hostConfig);if(!t)',
       ),
       DAEMON,
       '!ModexCustomCli.isActive()&&' + DAEMON,

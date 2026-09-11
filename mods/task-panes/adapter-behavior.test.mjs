@@ -80,23 +80,23 @@ test.skipIf(!process.env.TASK_PANES_BUNDLES)(
       ),
     );
     const source = output[files.localThread],
-      start = source.indexOf('function X_('),
-      end = source.indexOf('var Z_,Q_,$_', start);
+      start = source.indexOf('function bv('),
+      end = source.indexOf('var xv,Sv,Cv', start);
     const bindings = {
-      YO: React,
+      Uk: React,
       TaskPanesRuntime: { usePane },
-      Z_: {
+      xv: {
         c: (size) =>
           React.useRef(Array(size).fill(Symbol.for('react.memo_cache_sentinel'))).current,
       },
-      Q_: { jsx: (type, props) => h(type, props), jsxs: (type, props) => h(type, props) },
-      F_: passthrough,
-      U_: () => null,
-      ol: passthrough,
+      Sv: { jsx: (type, props) => h(type, props), jsxs: (type, props) => h(type, props) },
+      av: passthrough,
+      pv: () => null,
+      bc: passthrough,
     };
     const Adapter = new Function(
       ...Object.keys(bindings),
-      source.slice(start, end) + ';return X_;',
+      source.slice(start, end) + ';return bv;',
     )(...Object.values(bindings));
     let mounts = 0;
     function Transcript() {
@@ -136,16 +136,16 @@ function providerHarness() {
     .slice(0, providerAdapter.indexOf('function ModexPaneShell'))
     .replace('export function', 'function');
   const Adapter = new Function(
+    'CT',
+    'uIs',
+    'qFs',
     'mT',
-    '$Ds',
-    'IDs',
-    'iT',
     'TaskPanesRuntime',
-    'Zw',
-    'pT',
-    'fT',
-    'JDs',
-    'NDs',
+    'sT',
+    'ST',
+    'xT',
+    'aIs',
+    'WFs',
     body + ';return ModexPaneProviders;',
   )(
     () => {},
@@ -309,13 +309,13 @@ test('local archive guard preserves read-only native transcript/footer and re-en
     portalTarget;
   const scope = {};
   const atoms = {
-    At: 'host',
-    ln: 'connection',
-    p: 'archived',
-    sn: 'title',
-    ue: 'summary',
-    qe: 'scope',
-    r: 'globalPreview',
+    mt: 'host',
+    Hr: 'connection',
+    fr: 'archived',
+    Mr: 'title',
+    Mn: 'summary',
+    on: 'scope',
+    Jn: 'globalPreview',
   };
   function NativeThread(props) {
     threadProps = props;
@@ -347,35 +347,34 @@ test('local archive guard preserves read-only native transcript/footer and re-en
         title: 'Task A',
         summary: { displayTitle: 'Task A' },
       })[atom],
-    Y: () => React.useContext(GlobalPreview),
-    Ut: () => scope,
-    dt: () => ({ state: preview ? { archivedConversationPreview: true } : null }),
+    k: () => React.useContext(GlobalPreview),
+    i: () => scope,
+    de: () => ({ state: preview ? { archivedConversationPreview: true } : null }),
     bs: () => h('aside', null, 'Missing host'),
     xs: () => h('aside', null, 'Unarchive required'),
-    It: () => h('aside', null, 'Loading'),
+    Zn: () => h('aside', null, 'Loading'),
     modexReactDOM: () => ({
       createPortal: (children, target) => {
         portalTarget = target;
         return children;
       },
     }),
-    Qr: () => {},
-    Mi: {
+    si: () => {},
+    oi: {
       HeaderButton: ({ label, pressed, onClick }) =>
         h('button', { 'aria-label': label, 'aria-pressed': pressed, onClick }),
     },
-    Hr: ({ children, ...props }) => h('button', props, children),
-    aa: ({ trigger, isOpen, onOpenChange, children }) =>
+    ta: ({ trigger, isOpen, onOpenChange, children }) =>
       h(
         'section',
         null,
         React.cloneElement(trigger, { onClick: () => onOpenChange(!isOpen) }),
         isOpen ? children : null,
       ),
-    Ca: () => h('aside', null, 'Native environment'),
+    _a: () => h('aside', null, 'Native environment'),
     Pa: passthrough,
-    Ta: {},
-    xa: NativeThread,
+    xa: {},
+    va: NativeThread,
     lo: PreviewFooter,
   };
   const Adapter = new Function(
@@ -443,12 +442,12 @@ test('cloud archived preview supplies the stock cloud footer and removes only th
     bo: React,
     ModexPaneProviders: passthrough,
     TaskPanesRuntime: { usePane },
-    G: (atom) => (atom === 'host' ? 'durable' : { data: { task: { title: 'Cloud task' } } }),
-    m: 'host',
-    Re: 'data',
-    Ke: () => ({ state: preview ? { archivedConversationPreview: true } : null }),
+    v: (atom) => (atom === 'host' ? 'durable' : { data: { task: { title: 'Cloud task' } } }),
+    nn: 'host',
+    l: 'data',
+    ne: () => ({ state: preview ? { archivedConversationPreview: true } : null }),
     Ja: NativeThread,
-    Wr: ({ conversationId, kind }) =>
+    Hr: ({ conversationId, kind }) =>
       h('footer', { 'data-thread': conversationId, 'data-kind': kind }),
   };
   const Adapter = new Function(
@@ -530,16 +529,16 @@ for (const kind of ['local', 'cloud'])
       .slice(0, providerAdapter.indexOf('function ModexPaneShell'))
       .replace('export function', 'function');
     const Adapter = new Function(
+      'CT',
+      'uIs',
+      'qFs',
       'mT',
-      '$Ds',
-      'IDs',
-      'iT',
       'TaskPanesRuntime',
-      'Zw',
-      'pT',
-      'fT',
-      'JDs',
-      'NDs',
+      'sT',
+      'ST',
+      'xT',
+      'aIs',
+      'WFs',
       body + ';return ModexPaneProviders;',
     )(
       () => {},
@@ -585,23 +584,23 @@ for (const kind of ['local', 'cloud'])
     }
     const pageBody = providerAdapter.slice(providerAdapter.indexOf('function ModexTaskPage'));
     const Page = new Function(
-      'qN',
-      'rQa',
-      'sH',
-      'Zw',
-      'Db',
-      'Dj',
-      '$w',
-      'r3',
-      'pSo',
+      'oP',
+      'W3a',
+      'YB',
+      'sT',
+      'ub',
+      'Lj',
+      'lT',
+      'z3',
+      'rko',
       'TaskPanesRuntime',
       'TaskPanesRenderer',
-      'KN',
-      'RV',
-      '_1',
+      'aP',
+      'aH',
+      'X1',
       'ModexPaneTab',
-      'ssi',
-      'osi',
+      'F9r',
+      'N9r',
       'ModexPaneShell',
       pageBody + ';return ModexTaskPage;',
     )(

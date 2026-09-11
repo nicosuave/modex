@@ -23,25 +23,25 @@ export async function transform(bundles) {
   patch(
     initial,
     'let b=s===`light`?_:y,x=b.fonts.codeFace',
-    'let b=s===`light`?_:y;ThemeIconRuntime.useTheme(O3,{theme:b,appearance:s,id:iO(s===`light`?Iv.lightCodeThemeId:Iv.darkCodeThemeId),read:PT,write:FT,listen:TSn,bridge:U});let x=b.fonts.codeFace',
+    'let b=s===`light`?_:y;ThemeIconRuntime.useTheme(u6,{theme:b,appearance:s,id:aO(s===`light`?xv.lightCodeThemeId:xv.darkCodeThemeId),read:Jx,write:Yx,listen:W1t,bridge:H});let x=b.fonts.codeFace',
   );
   output[settings] =
     'import {Settings as ThemeIconSettings} from "./theme-icon-runtime.mjs";' + output[settings];
   patch(
     settings,
-    ',C}function Lo(e){',
-    ',(0,$.jsxs)($.Fragment,{children:[C,(0,$.jsx)(ThemeIconSettings,{React:Qo,Row:R,Dropdown:ne,DropdownButton:E,Menu:ot,CheckIcon:Nn,previews:d,enabled:a===`codex-system`,onEnable:()=>K(t,sr.dockIconPreference,`codex-system`)})]})}function Lo(e){',
+    ',T}function Ro(e){',
+    ',(0,$.jsxs)($.Fragment,{children:[T,(0,$.jsx)(ThemeIconSettings,{React:$o,Row:K,Dropdown:he,DropdownButton:Ue,Menu:z,CheckIcon:xn,previews:d,enabled:a===`codex-system`,onEnable:()=>U(t,it.dockIconPreference,`codex-system`)})]})}function Ro(e){',
   );
   output[main] = 'const ThemeIconMain=require("./theme-icon-main.cjs");' + output[main];
   patch(
     main,
-    'I=e=>{if(e===`app-default`&&t!==a.a.Dev)',
-    'I=e=>{if(ThemeIconMain.apply(e))return;if(e===`app-default`&&t!==a.a.Dev)',
+    'I=e=>{if(e===`app-default`&&t!==a.i.Dev)',
+    'I=e=>{if(ThemeIconMain.apply(e))return;if(e===`app-default`&&t!==a.i.Dev)',
   );
   patch(
     main,
-    '};if(g){ee();let e=()=>{let e=A();e===`codex-system`&&I(e)};',
-    '};ThemeIconMain.configure(l,process.resourcesPath,()=>I(A()));if(g){ee();let e=()=>{let e=A();e===`codex-system`&&I(e)};',
+    '};if(g){L();let e=()=>{let e=A();e===`codex-system`&&I(e)};',
+    '};ThemeIconMain.configure(l,process.resourcesPath,()=>I(A()));if(g){L();let e=()=>{let e=A();e===`codex-system`&&I(e)};',
   );
   patch(
     main,

@@ -36,8 +36,8 @@ test.skipIf(!process.env.CUSTOM_CLI_BUNDLES)(
     // Execute the stock native-tool path resolver: this path is separate from
     // app-server launch and must continue observing the same executable override.
     const main = output[MAIN],
-      nativeStart = main.indexOf('function ti('),
-      nativeEnd = main.indexOf('var ai=', nativeStart);
+      nativeStart = main.indexOf('function Zr('),
+      nativeEnd = main.indexOf('var ti=', nativeStart);
     expect(nativeEnd).toBeGreaterThan(nativeStart);
     const runtimeContext = {
       process: {
@@ -45,12 +45,12 @@ test.skipIf(!process.env.CUSTOM_CLI_BUNDLES)(
         platform: 'darwin',
         cwd: () => '/workspace',
       },
-      n: { Xn: () => '/modules' },
+      n: { $n: () => '/modules' },
       p: { default: path },
     };
     vm.createContext(runtimeContext);
     const nativePaths = vm.runInContext(
-      `(()=>{${main.slice(nativeStart, nativeEnd)}return ti;})()`,
+      `(()=>{${main.slice(nativeStart, nativeEnd)}return Zr;})()`,
       runtimeContext,
     );
     const resolved = nativePaths({
@@ -81,11 +81,11 @@ test.skipIf(!process.env.CUSTOM_CLI_BUNDLES)(
     });
     expect(events).toEqual(['custom', 'stock']);
     const source = output[SOURCE];
-    const resolveStart = source.indexOf('function yU('),
-      resolveEnd = source.indexOf('function bU(', resolveStart);
+    const resolveStart = source.indexOf('function dU('),
+      resolveEnd = source.indexOf('function fU(', resolveStart);
     const resolveCommand = vm.runInNewContext(
-      `(()=>{${source.slice(resolveStart, resolveEnd)}return yU;})()`,
-      { RU: () => '/configured/cli', xU: () => ['app-server'] },
+      `(()=>{${source.slice(resolveStart, resolveEnd)}return dU;})()`,
+      { AU: () => '/configured/cli', pU: () => ['app-server'] },
     );
     expect(resolveCommand({ hostConfig: { kind: 'local' } })).toEqual({
       executablePath: '/configured/cli',
@@ -97,8 +97,8 @@ test.skipIf(!process.env.CUSTOM_CLI_BUNDLES)(
       }),
     ).toEqual({ executablePath: '/host/cli', args: ['app-server', '--stdio'] });
     const connection = source.slice(
-      source.indexOf('uU=class') + 3,
-      source.indexOf(';async function dU('),
+      source.indexOf('nU=class') + 3,
+      source.indexOf(';async function rU('),
     );
     const start = source.indexOf('spawnProcess(){'),
       end = source.indexOf('onProcessError=e=>', start);
@@ -120,33 +120,33 @@ test.skipIf(!process.env.CUSTOM_CLI_BUNDLES)(
             applyLaunch: (value, host) => applyLaunch(value, host, config),
             isActive: () => active,
           },
-          SV: class {},
-          pU: async () => launch,
+          pV: class {},
+          aU: async () => launch,
           i: path,
-          iA: () => '/profile',
+          Zk: () => '/profile',
           process: { platform: 'darwin', env: { CODEX_APP_SERVER_USE_LOCAL_DAEMON: '1' } },
-          mU: () => null,
-          dU: async () => true,
+          oU: () => null,
+          rU: async () => true,
           p: { createConnection() {} },
-          hH: class {
+          oH: class {
             connect() {
               return 'daemon';
             }
           },
-          QR: { resolve: () => null },
+          UR: { resolve: () => null },
           d: {
             spawn: (...args) => {
               calls.push(args);
               return { pid: 1, on() {} };
             },
           },
-          qI: () => null,
-          vV: { Open: 1 },
+          LI: () => null,
+          lV: { Open: 1 },
           queueMicrotask: () => {},
         };
         vm.createContext(context);
         const Spawn = vm.runInContext(`(class {${spawnMethod}})`, context);
-        context.lU = class {
+        context.tU = class {
           constructor(options) {
             this.options = options;
             this.logger = { info() {} };

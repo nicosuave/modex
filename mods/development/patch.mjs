@@ -12,13 +12,13 @@ export const protocolPath = Object.keys(compatibility.files)[0];
 export function readDevelopmentProtocol(source) {
   return inspectCompatibility(source, compatibility).bundles.get(protocolPath);
 }
-const protocolAnchor = 'function $e(e){rt(),o.protocol.handle(`app`,async t=>{let n=Ze(t.url,e);';
+const protocolAnchor = 'function nt(e){ot(),o.protocol.handle(`app`,async t=>{let n=et(t.url,e);';
 export function transformProtocol(code) {
   if (code.split(protocolAnchor).length !== 2)
     throw Error('Unsupported development protocol call site');
   return code.replace(
     protocolAnchor,
-    'function $e(e){rt(),o.protocol.handle(`app`,async t=>{const modexResponse=require(`./modex-development-main.cjs`).responseFor(t);if(modexResponse)return modexResponse;let n=Ze(t.url,e);',
+    'function nt(e){ot(),o.protocol.handle(`app`,async t=>{const modexResponse=require(`./modex-development-main.cjs`).responseFor(t);if(modexResponse)return modexResponse;let n=et(t.url,e);',
   );
 }
 export function inspectDevelopmentForBuild(root, mods, source) {

@@ -7,14 +7,25 @@ export const manifest = JSON.parse(
 export const mainPath = Object.keys(manifest.files)[0];
 export const runtimePath = '.vite/build/modex-app-tools-auth.cjs';
 export const nativeName = 'modex-app-tools-auth.node';
-const anchor =
-  'async function mie({callTool:e,listTools:t,pipePath:n,socketPeerAuthorizer:r=Tf()})';
-const replacement =
-  'async function mie({callTool:e,listTools:t,pipePath:n,socketPeerAuthorizer:r=process.platform===`darwin`?require(`./modex-app-tools-auth.cjs`).wrap(Tf(),require(require(`node:path`).join(process.resourcesPath,`native`,`modex-app-tools-auth.node`))):Tf()})';
+// Match the app-tools parameter contract, not the minifier's function/binding names.
+// Other pipes share the factory but have different contracts and must stay untouched.
+const identifier = '[A-Za-z_$][A-Za-z0-9_$]*';
+const authorizationContract = new RegExp(
+  String.raw`\basync\s+function\s+${identifier}\s*\(\s*\{\s*callTool\s*:\s*${identifier}\s*,\s*listTools\s*:\s*${identifier}\s*,\s*pipePath\s*:\s*${identifier}\s*,\s*socketPeerAuthorizer\s*:\s*${identifier}\s*=\s*(?<factory>${identifier})\s*\(\s*\)(?=\s*\}\s*\)\s*\{)`,
+  'g',
+);
 
 export function transform(main) {
-  if (main.split(anchor).length !== 2) throw Error('Unsupported app-tools authorization call site');
-  return main.replace(anchor, replacement);
+  const matches = [...main.matchAll(authorizationContract)];
+  if (matches.length !== 1) throw Error('Unsupported app-tools authorization call site');
+  const match = matches[0];
+  const factoryCall = `${match.groups.factory}()`;
+  const replacement = match[0].replace(
+    /[A-Za-z_$][A-Za-z0-9_$]*\s*\(\s*\)$/,
+    () =>
+      `process.platform===\`darwin\`?require(\`./modex-app-tools-auth.cjs\`).wrap(${factoryCall},require(require(\`node:path\`).join(process.resourcesPath,\`native\`,\`modex-app-tools-auth.node\`))):${factoryCall}`,
+  );
+  return main.slice(0, match.index) + replacement + main.slice(match.index + match[0].length);
 }
 
 export function repairOverlay(source, replacements) {
