@@ -4,6 +4,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { transform, mainPath } from './patch.mjs';
 import { readArchive, readEntry } from '../../lib/asar.mjs';
+import { resolveBundlePaths } from '../../lib/current-source.mjs';
 const { wrap } = createRequire(import.meta.url)('./runtime.cjs');
 const socket = { _handle: { fd: 42 } };
 const denied = { authorized: false, reason: 'untrusted-code-signing-identity' };
@@ -153,7 +154,11 @@ test.skipIf(!previousArchive)(
 test.skipIf(!fixture || !fs.existsSync(fixture))(
   'real main default authorizer loads the scoped adapter and preserves injected authorizers',
   async () => {
-    const input = readEntry(readArchive(fixture), mainPath).toString();
+    const archive = readArchive(fixture);
+    const input = readEntry(
+      archive,
+      resolveBundlePaths(archive, [mainPath]).get(mainPath),
+    ).toString();
     const output = transform(input);
     // Both other users of the stock factory must remain outside this repair.
     for (const signature of [

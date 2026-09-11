@@ -66,7 +66,9 @@ test.skipIf(!process.env.COMBINED_BUNDLES)(
         fs.readFileSync(path.join(process.env.COMBINED_BUNDLES, name), 'utf8'),
       ]),
     );
-    validateInputs(original);
+    validateInputs(original, undefined, {
+      currentSource: process.env.APP_TOOLS_AUTH_CURRENT_SOURCE === '1',
+    });
     const result = await transform(original);
     expect(await transform(original)).toEqual(result);
     const initial =

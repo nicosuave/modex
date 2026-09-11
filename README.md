@@ -19,7 +19,7 @@ For example, `--mods theme-icon,task-panes` combines Theme Icon and Task Panes. 
 
 - macOS and [Bun](https://bun.sh).
 - Xcode Command Line Tools and Node development headers (Homebrew Node supplies them), for the [app-tools authentication repair](mods/app-tools-auth/README.md).
-- An unmodified stock Codex app, version **26.903.71938 (8576)**. Other builds fail compatibility checks.
+- An unmodified stock Codex app. The reviewed baseline is **26.903.71938 (8576)**. `update` attempts the current stock build without a version/hash allowlist; manual `verify` and `prepare` use the baseline unless passed `--current-source`.
 - A **Developer ID Application** signing certificate with its private key available in Keychain. Preparation requires this certificate; ad-hoc signing is not supported.
 
 The commands below use `/Applications/ChatGPT.app` as the stock source. If yours is elsewhere, add `--source "/absolute/path/to/ChatGPT.app"` to every `verify` and `prepare` command. The source must be stock Codex, not an existing Modex build.
@@ -64,6 +64,33 @@ If you use Codex Micro, grant **Modex.app** Input Monitoring access in System Se
 See the mod guides linked above for their controls and configuration. To return to stock, quit Modex and open the unchanged original app.
 
 ## Update Modex
+
+After updating the stock app, run this from a current Modex checkout:
+
+```sh
+bun run modex update
+```
+
+The command reads the installed Modex's enabled mods, installs dependencies from the
+lockfile, checks and patches the current stock app, then writes a **new, separate
+signed Modex.app** under `work/updates/`. It preserves the installed bundle ID,
+signing team, and any configured development-module directory. It never installs,
+replaces, waits for, quits, or launches an app. Your installed Modex stays untouched.
+
+Modex is detected in `/Applications` or `~/Applications`. If both locations contain
+it, select the identity source with `--app /Applications/Modex.app`. Use `--output`
+for a new absolute `.app` path outside Applications, `--source` for another stock
+app, `--backup` to reuse a verified stock ZIP, or `--check` for read-only preflight.
+A new stock backup is created beside the output unless `--backup` is supplied.
+
+Update uses the current checkout and current stock bytes, without a version or hash
+allowlist. It still verifies source signatures, patch matches, deterministic output,
+and the final signed copy. A changed stock implementation can cause a patch to fail;
+that requires adapting the patch. Failure leaves both original apps untouched.
+The command does not pull Git changes or operate the stock updater. Once it prints
+the new app path, follow [Install and open](#install-and-open) when ready to switch.
+
+### Manual build and installation
 
 From your repository checkout, update the source, install dependencies, and verify the mods. For a clean checkout on `main`:
 
@@ -158,7 +185,7 @@ verified, signed build. To return to a self-contained app, prepare without
 
 ## Troubleshooting and permissions
 
-Start with [REPAIR.md](REPAIR.md) for compatibility, packaging, signing, permission, or runtime failures, then follow the affected mod's repair guide. Unknown stock versions require a reviewed adaptation; do not bypass the compatibility checks.
+Start with [REPAIR.md](REPAIR.md) for patch, packaging, signing, permission, or runtime failures, then follow the affected mod's repair guide. `update` attempts the current stock source without the baseline version/hash allowlist. A changed or ambiguous patch call site still requires a source repair; the command does not silently skip a failed mod.
 
 New root-CLI builds use `local.codex.model-spread` as their bundle ID. Updates using `--identity-from` retain the installed identity regardless of the selected mods. A first installation has its own macOS permission grants; stock Codex or an old launcher's grants do not authorize it. Changing the bundle ID or signing team can require reauthorization.
 

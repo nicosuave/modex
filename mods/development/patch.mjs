@@ -9,8 +9,8 @@ const compatibility = JSON.parse(
   fs.readFileSync(new URL('./compatibility.json', import.meta.url), 'utf8'),
 );
 export const protocolPath = Object.keys(compatibility.files)[0];
-export function readDevelopmentProtocol(source) {
-  return inspectCompatibility(source, compatibility).bundles.get(protocolPath);
+export function readDevelopmentProtocol(source, options = {}) {
+  return inspectCompatibility(source, compatibility, options).bundles.get(protocolPath);
 }
 const protocolAnchor = 'function nt(e){ot(),o.protocol.handle(`app`,async t=>{let n=et(t.url,e);';
 export function transformProtocol(code) {
@@ -21,9 +21,9 @@ export function transformProtocol(code) {
     'function nt(e){ot(),o.protocol.handle(`app`,async t=>{const modexResponse=require(`./modex-development-main.cjs`).responseFor(t);if(modexResponse)return modexResponse;let n=et(t.url,e);',
   );
 }
-export function inspectDevelopmentForBuild(root, mods, source) {
+export function inspectDevelopmentForBuild(root, mods, source, options = {}) {
   if (!path.isAbsolute(root)) throw Error('--dev-root must be an absolute development directory');
-  if (source) readDevelopmentProtocol(source);
+  if (source) readDevelopmentProtocol(source, options);
   return inspectDevelopment(root, {
     hookHash: computeHookHash(mods),
     mods,
@@ -46,9 +46,18 @@ ${exportsList.map((name) => `export const ${name}=selected.${name};`).join('\n')
 `;
 }
 /** Opt-in only. Uses the existing app origin without changing renderer CSP. */
-export async function applyDevelopment(replacements, root, mods, protocolOriginal) {
+export async function applyDevelopment(
+  replacements,
+  root,
+  mods,
+  protocolOriginal,
+  { currentSource = false } = {},
+) {
   const manifest = inspectDevelopmentForBuild(root, mods);
-  if (!protocolOriginal || digest(protocolOriginal) !== compatibility.files[protocolPath])
+  if (
+    !protocolOriginal ||
+    (!currentSource && digest(protocolOriginal) !== compatibility.files[protocolPath])
+  )
     throw Error('Unsupported development protocol source hash');
   if (replacements.has(protocolPath))
     throw Error('Unexpected development protocol transform owner');
@@ -74,6 +83,7 @@ export async function applyDevelopment(replacements, root, mods, protocolOrigina
   replacements.set(mainPath, Buffer.from(bootstrap + main.toString()));
   return {
     root: path.resolve(root),
+    source: manifest.source,
     mods,
     hookHash: manifest.hookHash,
     moduleHashes: Object.fromEntries(

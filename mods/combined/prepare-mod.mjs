@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { compatibilityFor, selectMods, legacyMarkers } from './compatibility.mjs';
 import { transform, validateInputs } from './build-mod.mjs';
+import { actualBundles } from '../../lib/current-source.mjs';
 export const HELP = `Usage: bun mods/combined/prepare-mod.mjs --output /absolute/new/Modex.app [options]
   --source APP          Stock app (default /Applications/ChatGPT.app)
   --identity-from APP   Preserve installed mod bundle ID and signing requirement
@@ -26,18 +27,22 @@ export function main(args = process.argv.slice(2), { mods, explicitSelection = f
     selectedMods,
     explicitSelection,
     legacyMarkers,
-    buildOverlay: async (input, output) => {
+    buildOverlay: async (input, output, { currentSource = false, paths = new Map() } = {}) => {
       const bundles = Object.fromEntries(
         Object.keys(manifest.files).map((name) => [
           name,
           fs.readFileSync(path.join(input, name), 'utf8'),
         ]),
       );
-      validateInputs(bundles, selectedMods);
+      if (!currentSource) validateInputs(bundles, selectedMods);
       const transforms = [];
-      const patched = await transform(bundles, selectedMods, {
-        onStage: (records) => transforms.push(...records),
-      });
+      const mapOutput = (value) => actualBundles(value, paths);
+      const patched = mapOutput(
+        await transform(bundles, selectedMods, {
+          onStage: (records) => transforms.push(...records),
+          mapOutput,
+        }),
+      );
       for (const [name, content] of Object.entries(patched)) {
         const target = path.join(output, name);
         fs.mkdirSync(path.dirname(target), { recursive: true });
