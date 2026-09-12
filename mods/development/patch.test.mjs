@@ -12,6 +12,7 @@ import {
   transformProtocol,
 } from './patch.mjs';
 import { mainPath } from '../app-tools-auth/patch.mjs';
+import { renameBindings } from '../../lib/source-contract.test-support.mjs';
 
 // Real ES modules exercise the same import path used under stock CSP, with no eval.
 test('renderer shim imports external modules and falls back on missing or incompatible exports', async () => {
@@ -85,34 +86,63 @@ test.skipIf(!fs.existsSync(stock))(
     }
   },
 );
-test('protocol hook preserves the stock handler for unrelated requests', async () => {
-  const stock =
-    'function nt(e){ot(),o.protocol.handle(`app`,async t=>{let n=et(t.url,e);return n})}';
-  let handler,
-    ordinary = 0;
-  const marked = new Response('module');
-  const require = () => ({
-    responseFor: (request) =>
-      request.url === 'app://-/assets/modex-development-theme-icon-runtime.mjs' ? marked : null,
+for (const setup of ['initialize()', 'initialize(restrictions)'])
+  test('protocol hook preserves routing and initialization: ' + setup, async () => {
+    const source =
+      'function install(root,restrictions){' +
+      setup +
+      ',electron.protocol.handle(`app`,async request=>{return route(request.url,root)})};install("root",restrictions);';
+    for (const stock of [source, renameBindings(source)]) {
+      let handler,
+        ordinary = 0,
+        initialized = false;
+      const restrictions = {};
+      const marked = new Response('module');
+      new Function(
+        'require',
+        'initialize',
+        'electron',
+        'route',
+        'restrictions',
+        transformProtocol(stock),
+      )(
+        () => ({
+          responseFor: (request) => (request.url.includes('modex-development-') ? marked : null),
+        }),
+        (value) => {
+          assert.equal(value, setup.includes('restrictions') ? restrictions : undefined);
+          initialized = true;
+        },
+        {
+          protocol: {
+            handle: (name, callback) => {
+              assert.equal(name, 'app');
+              handler = callback;
+            },
+          },
+        },
+        (url, root) => {
+          assert.equal(root, 'root');
+          ordinary++;
+          return 'stock';
+        },
+        restrictions,
+      );
+      assert.equal(initialized, true);
+      assert.equal(
+        await handler({ url: 'app://-/assets/modex-development-theme-icon-runtime.mjs' }),
+        marked,
+      );
+      assert.equal(ordinary, 0);
+      assert.equal(await handler({ url: 'app://-/index.html' }), 'stock');
+      assert.equal(ordinary, 1);
+      assert.throws(() => transformProtocol(`{${stock}}{${stock}}`), /Unsupported/);
+      assert.throws(
+        () => transformProtocol(stock.replace('protocol.handle', 'protocol.other')),
+        /Unsupported/,
+      );
+    }
   });
-  new Function('require', 'ot', 'o', 'et', transformProtocol(stock) + ';nt("root");')(
-    require,
-    () => {},
-    { protocol: { handle: (_name, callback) => (handler = callback) } },
-    () => {
-      ordinary++;
-      return 'stock';
-    },
-  );
-  assert.equal(
-    await handler({ url: 'app://-/assets/modex-development-theme-icon-runtime.mjs' }),
-    marked,
-  );
-  assert.equal(ordinary, 0);
-  assert.equal(await handler({ url: 'app://-/index.html' }), 'stock');
-  assert.equal(ordinary, 1);
-  assert.throws(() => transformProtocol(stock + stock), /Unsupported/);
-});
 test('external editor and slot logic share the configured native store after a window reload', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'modex-dev-singleton-'));
   try {

@@ -11,12 +11,13 @@ const require = createRequire(import.meta.url);
 const suite = process.platform === 'darwin' ? describe : describe.skip;
 suite('native socket authorizer', () => {
   let scratch, addon;
+  // Compiling the real native addon can exceed Bun's five-second default under load.
   beforeAll(() => {
     scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'modex-native-test-'));
     const output = path.join(scratch, 'authorizer.node');
     buildNative({ output, teamId: 'ABCDE12345', bundleId: 'local.modex.authorizer-test' });
     addon = require(output);
-  });
+  }, 30000);
   afterAll(() => fs.rmSync(scratch, { recursive: true, force: true }));
 
   test('rejects malformed descriptors without coercion', () => {

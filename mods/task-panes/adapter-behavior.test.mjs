@@ -7,6 +7,8 @@ import React from 'react';
 import { act, create } from 'react-test-renderer';
 import { providerAdapter, localAdapter, cloudAdapter, transform, files } from './build-mod.mjs';
 import { getPaneContext, usePane } from './runtime.mjs';
+import { parseModule, propertyName, literalValue, unique } from '../../lib/source-contract.mjs';
+import { fixtureSourceModules } from '../../lib/source-contract.test-support.mjs';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const h = React.createElement;
@@ -68,7 +70,7 @@ test.skipIf(!process.env.CHROMIUM_PATH)(
 );
 
 test.skipIf(!process.env.TASK_PANES_BUNDLES)(
-  'native outer clipping changes only in panes and preserves mounted transcript across context changes',
+  'native outer wrapper clips panes and preserves mounted transcript across context changes',
   async () => {
     const manifest = JSON.parse(fs.readFileSync(new URL('./compatibility.json', import.meta.url)));
     const output = transform(
@@ -78,25 +80,55 @@ test.skipIf(!process.env.TASK_PANES_BUNDLES)(
           fs.readFileSync(path.join(process.env.TASK_PANES_BUNDLES, name), 'utf8'),
         ]),
       ),
+      { sourceModules: fixtureSourceModules(process.env.TASK_PANES_BUNDLES) },
     );
-    const source = output[files.localThread],
-      start = source.indexOf('function bv('),
-      end = source.indexOf('var xv,Sv,Cv', start);
+    const module = parseModule(output[files.localThread]);
+    const wrapper = module.one(
+      (node) =>
+        node.type === 'Property' &&
+        propertyName(node.key) === 'className' &&
+        String(literalValue(node.value)).split(' ').includes('group/realtime-voice-thread'),
+      'voice transcript wrapper',
+    );
+    const fn = module.ancestor(wrapper, (node) => node.type === 'FunctionDeclaration');
+    const nodes = module.nodes.filter((node) => node.start >= fn.start && node.end <= fn.end);
+    const memberName = (node) =>
+      node?.type === 'MemberExpression' ? propertyName(node.property) : null;
+    const callTarget = (node) =>
+      node?.type === 'SequenceExpression' ? node.expressions.at(-1) : node;
+    const jsxCalls = nodes.filter(
+      (node) =>
+        node.type === 'CallExpression' &&
+        ['jsx', 'jsxs'].includes(memberName(callTarget(node.callee))),
+    );
+    const compiler = unique(
+      nodes.filter(
+        (node) => node.type === 'CallExpression' && memberName(callTarget(node.callee)) === 'c',
+      ),
+      'wrapper memo cache',
+    );
     const bindings = {
-      Uk: React,
       TaskPanesRuntime: { usePane },
-      xv: {
+      [module.text(callTarget(compiler.callee).object)]: {
         c: (size) =>
           React.useRef(Array(size).fill(Symbol.for('react.memo_cache_sentinel'))).current,
       },
-      Sv: { jsx: (type, props) => h(type, props), jsxs: (type, props) => h(type, props) },
-      av: passthrough,
-      pv: () => null,
-      bc: passthrough,
     };
+    for (const call of jsxCalls) {
+      bindings[module.text(callTarget(call.callee).object)] = {
+        jsx: (type, props) => h(type, props),
+        jsxs: (type, props) => h(type, props),
+      };
+      if (call.arguments[0].type === 'Identifier') bindings[call.arguments[0].name] = passthrough;
+    }
+    for (const call of nodes.filter(
+      (node) => node.type === 'CallExpression' && memberName(node.callee) === 'usePane',
+    ))
+      bindings[module.text(call.arguments[0])] = React;
+    const nativeClip = String(literalValue(wrapper.value)).split(' ').includes('overflow-clip');
     const Adapter = new Function(
       ...Object.keys(bindings),
-      source.slice(start, end) + ';return bv;',
+      module.text(fn) + `;return ${fn.id.name};`,
     )(...Object.values(bindings));
     let mounts = 0;
     function Transcript() {
@@ -119,13 +151,16 @@ test.skipIf(!process.env.TASK_PANES_BUNDLES)(
     });
     expect(tree.root.findByType('div').props.style).toBeUndefined();
     await act(async () => tree.update(render({ active: true })));
-    expect(tree.root.findByType('div').props.style).toEqual({ overflow: 'clip' });
+    if (nativeClip)
+      expect(tree.root.findByType('div').props.className.split(' ')).toContain('overflow-clip');
+    else expect(tree.root.findByType('div').props.style).toEqual({ overflow: 'clip' });
     expect(tree.root.findByType('article').children).toEqual(['Transcript']);
     await act(async () => tree.update(render(null)));
     expect(tree.root.findByType('div').props.style).toBeUndefined();
     expect(mounts).toBe(1);
     await act(async () => tree.unmount());
   },
+  120000,
 );
 
 function providerHarness() {
@@ -136,28 +171,20 @@ function providerHarness() {
     .slice(0, providerAdapter.indexOf('function ModexPaneShell'))
     .replace('export function', 'function');
   const Adapter = new Function(
-    'CT',
-    'uIs',
-    'qFs',
-    'mT',
+    'ModexPaneNative',
     'TaskPanesRuntime',
-    'sT',
-    'ST',
-    'xT',
-    'aIs',
-    'WFs',
     body + ';return ModexPaneProviders;',
   )(
-    () => {},
-    () => {},
-    () => {},
-    React,
-    { usePane },
-    () => outer,
-    Route,
-    Location,
-    passthrough,
-    passthrough,
+    {
+      initialize() {},
+      React,
+      location: () => outer,
+      RouteContext: Route,
+      LocationContext: Location,
+      ScopeProvider: passthrough,
+      ComposerProvider: passthrough,
+    },
+    { usePane: usePane },
   );
   function Content() {
     observed = React.useContext(Location).location;
@@ -308,15 +335,6 @@ test('local archive guard preserves read-only native transcript/footer and re-en
     toolbarElement = null,
     portalTarget;
   const scope = {};
-  const atoms = {
-    mt: 'host',
-    Hr: 'connection',
-    fr: 'archived',
-    Mr: 'title',
-    Mn: 'summary',
-    on: 'scope',
-    Jn: 'globalPreview',
-  };
   function NativeThread(props) {
     threadProps = props;
     React.useEffect(() => {
@@ -334,12 +352,16 @@ test('local archive guard preserves read-only native transcript/footer and re-en
       'Restore task',
     );
   }
-  const bindings = {
-    Cs: React,
-    TaskPanesRuntime: { usePane },
-    ModexPaneProviders: passthrough,
-    ...atoms,
-    X: (atom) =>
+  const native = {
+    React,
+    hostAtom: 'host',
+    connectionAtom: 'connection',
+    archivedAtom: 'archived',
+    titleAtom: 'title',
+    summaryAtom: 'summary',
+    scope: 'scope',
+    globalPreviewAtom: 'globalPreview',
+    read: (atom) =>
       ({
         host: 'local',
         connection: { status: unavailable ? 'unavailable' : 'available' },
@@ -347,40 +369,46 @@ test('local archive guard preserves read-only native transcript/footer and re-en
         title: 'Task A',
         summary: { displayTitle: 'Task A' },
       })[atom],
-    k: () => React.useContext(GlobalPreview),
-    i: () => scope,
-    de: () => ({ state: preview ? { archivedConversationPreview: true } : null }),
-    bs: () => h('aside', null, 'Missing host'),
-    xs: () => h('aside', null, 'Unarchive required'),
-    Zn: () => h('aside', null, 'Loading'),
-    modexReactDOM: () => ({
-      createPortal: (children, target) => {
-        portalTarget = target;
-        return children;
-      },
-    }),
-    si: () => {},
-    oi: {
-      HeaderButton: ({ label, pressed, onClick }) =>
-        h('button', { 'aria-label': label, 'aria-pressed': pressed, onClick }),
-    },
-    ta: ({ trigger, isOpen, onOpenChange, children }) =>
+    readGlobal: () => React.useContext(GlobalPreview),
+    readScope: () => scope,
+    location: () => ({ state: preview ? { archivedConversationPreview: true } : null }),
+    Unavailable: () => h('aside', null, 'Missing host'),
+    Archived: () => h('aside', null, 'Unarchive required'),
+    Loading: () => h('aside', null, 'Loading'),
+    HeaderButton: ({ label, pressed, onClick }) =>
+      h('button', { 'aria-label': label, 'aria-pressed': pressed, onClick }),
+    Popover: ({ trigger, isOpen, onOpenChange, children }) =>
       h(
         'section',
         null,
         React.cloneElement(trigger, { onClick: () => onOpenChange(!isOpen) }),
         isOpen ? children : null,
       ),
-    _a: () => h('aside', null, 'Native environment'),
-    Pa: passthrough,
-    xa: {},
-    va: NativeThread,
-    lo: PreviewFooter,
+    Summary: () => h('aside', null, 'Native environment'),
+    PinProvider: passthrough,
+    pinValue: {},
+    Thread: NativeThread,
+    Footer: PreviewFooter,
   };
   const Adapter = new Function(
-    ...Object.keys(bindings),
+    'ModexLocalNative',
+    'TaskPanesRuntime',
+    'ModexPaneProviders',
+    'modexReactDOM',
+    'ModexInitializeSummary',
     localAdapter.replace('export function', 'function') + ';return ModexLocalPaneTask;',
-  )(...Object.values(bindings));
+  )(
+    native,
+    { usePane },
+    passthrough,
+    () => ({
+      createPortal: (children, target) => {
+        portalTarget = target;
+        return children;
+      },
+    }),
+    () => {},
+  );
   const task = { conversationId: 'a', hostId: 'local', title: 'Task A' };
   const render = () =>
     h(
@@ -438,22 +466,22 @@ test('cloud archived preview supplies the stock cloud footer and removes only th
   function NativeThread({ showComposer, footerContent }) {
     return h('main', null, showComposer ? h('textarea') : null, footerContent);
   }
-  const bindings = {
-    bo: React,
-    ModexPaneProviders: passthrough,
-    TaskPanesRuntime: { usePane },
-    v: (atom) => (atom === 'host' ? 'durable' : { data: { task: { title: 'Cloud task' } } }),
-    nn: 'host',
-    l: 'data',
-    ne: () => ({ state: preview ? { archivedConversationPreview: true } : null }),
-    Ja: NativeThread,
-    Hr: ({ conversationId, kind }) =>
+  const native = {
+    React,
+    read: (atom) => (atom === 'host' ? 'durable' : { data: { task: { title: 'Cloud task' } } }),
+    hostAtom: 'host',
+    dataAtom: 'data',
+    location: () => ({ state: preview ? { archivedConversationPreview: true } : null }),
+    Thread: NativeThread,
+    Footer: ({ conversationId, kind }) =>
       h('footer', { 'data-thread': conversationId, 'data-kind': kind }),
   };
   const Adapter = new Function(
-    ...Object.keys(bindings),
+    'ModexCloudNative',
+    'ModexPaneProviders',
+    'TaskPanesRuntime',
     cloudAdapter.replace('export function', 'function') + ';return ModexCloudPaneTask;',
-  )(...Object.values(bindings));
+  )(native, passthrough, { usePane });
   const render = () => h(Adapter, { task: { taskId: 'cloud-a', title: 'Cloud task' } });
   let tree;
   await act(async () => {
@@ -529,28 +557,20 @@ for (const kind of ['local', 'cloud'])
       .slice(0, providerAdapter.indexOf('function ModexPaneShell'))
       .replace('export function', 'function');
     const Adapter = new Function(
-      'CT',
-      'uIs',
-      'qFs',
-      'mT',
+      'ModexPaneNative',
       'TaskPanesRuntime',
-      'sT',
-      'ST',
-      'xT',
-      'aIs',
-      'WFs',
       body + ';return ModexPaneProviders;',
     )(
-      () => {},
-      () => {},
-      () => {},
-      React,
-      { usePane },
-      () => location,
-      Route,
-      Location,
-      passthrough,
-      passthrough,
+      {
+        initialize() {},
+        React,
+        location: () => location,
+        RouteContext: Route,
+        LocationContext: Location,
+        ScopeProvider: passthrough,
+        ComposerProvider: passthrough,
+      },
+      { usePane: usePane },
     );
     let mounts = 0,
       rerender;
@@ -584,42 +604,26 @@ for (const kind of ['local', 'cloud'])
     }
     const pageBody = providerAdapter.slice(providerAdapter.indexOf('function ModexTaskPage'));
     const Page = new Function(
-      'oP',
-      'W3a',
-      'YB',
-      'sT',
-      'ub',
-      'Lj',
-      'lT',
-      'z3',
-      'rko',
+      'ModexPaneNative',
       'TaskPanesRuntime',
       'TaskPanesRenderer',
-      'aP',
-      'aH',
-      'X1',
       'ModexPaneTab',
-      'F9r',
-      'N9r',
       'ModexPaneShell',
       pageBody + ';return ModexTaskPage;',
     )(
-      () => {},
-      () => {},
-      () => {},
-      () => location,
-      () => ({ value: routeFor() }),
-      {},
-      () => navigate,
-      React,
-      passthrough,
+      {
+        initialize() {},
+        React,
+        location: () => location,
+        readScope: () => ({ value: routeFor() }),
+        routeScope: {},
+        navigate: () => navigate,
+        BrowserProvider: passthrough,
+        Button: 'button',
+        AppShell: { HeaderToolbar: passthrough },
+      },
       { Workspace: (props) => h(Workspace, { ...props, store, coordinator }) },
       { getRenderer: () => Task },
-      'button',
-      undefined,
-      { HeaderToolbar: passthrough },
-      undefined,
-      undefined,
       undefined,
       passthrough,
     );

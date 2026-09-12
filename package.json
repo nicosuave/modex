@@ -14,6 +14,9 @@
     "modex": "bun modex.mjs"
   },
   "devDependencies": {
+    "acorn": "^8.18.0",
+    "acorn-walk": "^8.3.5",
+    "eslint-scope": "^9.1.2",
     "oxfmt": "^0.67.0",
     "pngjs": "^7.0.0",
     "react": "19.2.8",

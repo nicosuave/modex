@@ -9,6 +9,7 @@ import { compatibilityFor, selectMods, componentManifests } from './compatibilit
 import { transform } from './build-mod.mjs';
 import { verifyRepair, repairOverlay } from '../app-tools-auth/patch.mjs';
 import { actualBundles, canonicalBundles, resolveBundlePaths } from '../../lib/current-source.mjs';
+import { archiveModules } from '../../lib/source-modules.mjs';
 export async function main(args = process.argv.slice(2), { mods } = {}) {
   const options = {};
   for (let i = 0; i < args.length; i += 2) {
@@ -42,7 +43,10 @@ export async function main(args = process.argv.slice(2), { mods } = {}) {
     [...bundles].map(([name, bytes]) => [name, bytes.toString()]),
   );
   const build = async () => {
-    const output = actualBundles(await transform(originals, selected), paths);
+    const output = actualBundles(
+      await transform(originals, selected, { sourceModules: archiveModules(archive) }),
+      paths,
+    );
     if (!options['--dev-root']) return output;
     const replacements = new Map(
       Object.entries(output).map(([name, content]) => [name, Buffer.from(content)]),
@@ -118,6 +122,8 @@ export async function main(args = process.argv.slice(2), { mods } = {}) {
   }
   const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'modex-verify-'));
   try {
+    const sourceFixture = JSON.stringify({ archivePath: archive.filename });
+    fs.writeFileSync(path.join(temporary, 'source-archive.json'), sourceFixture);
     for (const [name, bytes] of bundles) {
       const target = path.join(temporary, name);
       fs.mkdirSync(path.dirname(target), { recursive: true });
@@ -138,6 +144,7 @@ export async function main(args = process.argv.slice(2), { mods } = {}) {
     if (selected.includes('model-spread')) {
       const spread = path.join(temporary, 'model-spread');
       fs.mkdirSync(spread);
+      fs.writeFileSync(path.join(spread, 'source-archive.json'), sourceFixture);
       for (const name of Object.keys(componentManifests['model-spread'].files))
         fs.writeFileSync(path.join(spread, name), bundles.get(`webview/assets/${name}`));
       env.MODEL_SPREAD_BUNDLES = spread;

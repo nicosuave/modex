@@ -1,18 +1,21 @@
 function MSMode({ layout, options, onChange }) {
-  Dr();
-  const config = ModelSpreadMod.useSettings(Cr),
+  const { React, Message, labels, modes, Row, Menu, Items, SettingsTrigger } =
+    modelSpreadMicroBindings();
+  const config = ModelSpreadMod.useSettings(React),
     mode = layout.encoderMode === 'reasoning' && config.micro ? 'model-spread' : layout.encoderMode;
-  const [error, setError] = Cr.useState(null);
+  const [error, setError] = React.useState(null);
   const items = [...options, 'model-spread'];
   const title = (value) =>
-    value === 'model-spread' ? 'Model spread' : Cr.createElement(f, { ...Oi[value].label });
+    value === 'model-spread'
+      ? 'Model spread'
+      : React.createElement(Message, { ...modes[value].label });
   const description = (value) =>
     value === 'model-spread'
       ? 'Move through your model and reasoning slots'
-      : Cr.createElement(f, { ...Oi[value].description });
+      : React.createElement(Message, { ...modes[value].description });
   const choices = items.map((value) =>
-    Cr.createElement(
-      A.Item,
+    React.createElement(
+      Items.Item,
       {
         key: value,
         onSelect: () => {
@@ -25,32 +28,33 @@ function MSMode({ layout, options, onChange }) {
           }
         },
       },
-      Cr.createElement(
+      React.createElement(
         'div',
         null,
         title(value),
-        Cr.createElement('div', { className: 'text-sm text-secondary' }, description(value)),
+        React.createElement('div', { className: 'text-sm text-secondary' }, description(value)),
       ),
     ),
   );
-  const control = Cr.createElement(
-    F,
+  const control = React.createElement(
+    Menu,
     {
       align: 'end',
       contentWidth: 'menuWide',
-      triggerButton: Cr.createElement(ue, null, title(mode)),
+      triggerButton: React.createElement(SettingsTrigger, null, title(mode)),
     },
     choices,
   );
-  return Cr.createElement(
-    Cr.Fragment,
+  return React.createElement(
+    React.Fragment,
     null,
-    Cr.createElement(Dt, {
-      label: Cr.createElement(f, { ...X.knob }),
-      description: Cr.createElement(f, { ...X.knobDescription }),
+    React.createElement(Row, {
+      label: React.createElement(Message, { ...labels.knob }),
+      description: React.createElement(Message, { ...labels.knobDescription }),
       control,
     }),
-    mode === 'model-spread' && Cr.createElement(ModelSpreadSettings, { hostId: 'local', row: Dt }),
-    error && Cr.createElement('p', { role: 'alert' }, error),
+    mode === 'model-spread' &&
+      React.createElement(ModelSpreadSettings, { hostId: 'local', row: Row }),
+    error && React.createElement('p', { role: 'alert' }, error),
   );
 }

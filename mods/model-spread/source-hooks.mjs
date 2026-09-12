@@ -1,10 +1,12 @@
+import { parseModule } from '../../lib/source-contract.mjs';
+
 // These hooks recognize the native operation and capture its local bindings.
-// Exact input hashes are still enforced by preparation; this only avoids manual
-// rewrites when a reviewed build renames those bindings.
+// Missing, changed or ambiguous operation shapes fail closed, while renaming
+// local bindings does not require another adapter edit.
 const identifier = String.raw`[$A-Z_a-z][$\w]*`;
 
-function replaceMatch(source, pattern, label, replacement) {
-  const matches = [...source.matchAll(new RegExp(pattern, 'g'))];
+function replaceMatch(source, pattern, label, replacement, accepts = () => true) {
+  const matches = [...source.matchAll(new RegExp(pattern, 'g'))].filter(accepts);
   if (matches.length !== 1)
     throw Error(`Compatibility check failed: expected one ${label}; found ${matches.length}`);
   const match = matches[0];
@@ -16,14 +18,42 @@ function replaceMatch(source, pattern, label, replacement) {
 }
 
 export function patchUsageBanners(source) {
+  const module = parseModule(source);
   return replaceMatch(
     source,
-    String.raw`(?<owner>canShowUsageBanners:(?<enabled>${identifier}),hostId:${identifier},imageGenerationLimit:(?<image>${identifier}),[^{};]{0,500}lowerPriorityContent:(?<fallback>${identifier}),[^{};]{0,500}\}=${identifier},[^{};]{0,500};\s*)` +
+    String.raw`(?<owner>canShowUsageBanners:(?<enabled>${identifier}),hostId:${identifier},imageGenerationLimit:(?<image>${identifier}),[^{};]{0,500}lowerPriorityContent:(?<fallback>${identifier}),[^{};]{0,500}\}=${identifier},[\s\S]{0,6000}?)` +
       String.raw`if\(!\k<enabled>\)return \k<fallback>;` +
       String.raw`(?<classify>let ${identifier}=${identifier}\(\{hasImageGenerationLimit:\k<image>!=null,)`,
     'usage banner owner with image-limit classification',
     ({ owner, enabled, image, fallback, classify }) =>
       `${owner}if(!${enabled}||${image}==null)return ${fallback};${classify}`,
+    (match) => {
+      const declaration = module
+        .ofType('VariableDeclarator')
+        .find(
+          (node) =>
+            node.id.type === 'ObjectPattern' &&
+            node.id.start <= match.index &&
+            node.id.end > match.index,
+        );
+      const statement = module.parents.get(declaration);
+      const block = module.parents.get(statement);
+      if (block?.type !== 'BlockStatement') return false;
+      const guardStart = match.index + match.groups.owner.length;
+      const guard = block.body.find(
+        (node) => node.type === 'IfStatement' && node.start === guardStart,
+      );
+      const classification = block.body[block.body.indexOf(guard) + 1];
+      // Both operations must be direct statements in the declaration's block.
+      // Matching names then refer to those lexical bindings, never a sibling
+      // function's parameters or bindings shadowed inside a nested block.
+      return (
+        guard != null &&
+        classification?.type === 'VariableDeclaration' &&
+        classification.start === guard.end &&
+        source.startsWith(match.groups.classify, classification.start)
+      );
+    },
   );
 }
 

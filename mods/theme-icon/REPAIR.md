@@ -1,9 +1,10 @@
 # Theme Icon repair
 
-Start with ../../REPAIR.md. Current integration points are the initial renderer's
-kBo root appearance provider and BY color resolution, general settings' Lo Dock
-row, and the main bundle's Dock lifecycle and primary-window message handler.
-Minified names are version-specific evidence, not stable APIs.
+Start with ../../REPAIR.md. `source-hooks.mjs` discovers the initial renderer's
+root appearance provider and color resolution, general settings' Dock row, and
+the main bundle's Dock lifecycle and primary-window message handler from their
+behavior and structure. Preserve these semantic contracts instead of adding
+release-specific minified aliases. Tests also execute lexically renamed source.
 
 Inspect new source around all callers before adapting the manifest. Check the
 React namespace and row exports, native persistence initialization, final theme

@@ -27,7 +27,11 @@ export function main(args = process.argv.slice(2), { mods, explicitSelection = f
     selectedMods,
     explicitSelection,
     legacyMarkers,
-    buildOverlay: async (input, output, { currentSource = false, paths = new Map() } = {}) => {
+    buildOverlay: async (
+      input,
+      output,
+      { currentSource = false, paths = new Map(), sourceModules } = {},
+    ) => {
       const bundles = Object.fromEntries(
         Object.keys(manifest.files).map((name) => [
           name,
@@ -41,6 +45,7 @@ export function main(args = process.argv.slice(2), { mods, explicitSelection = f
         await transform(bundles, selectedMods, {
           onStage: (records) => transforms.push(...records),
           mapOutput,
+          sourceModules,
         }),
       );
       for (const [name, content] of Object.entries(patched)) {

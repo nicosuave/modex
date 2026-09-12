@@ -3,6 +3,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { prepareMain } from '../../lib/prepare-mod.mjs';
 import { legacyMarkers } from '../combined/compatibility.mjs';
+import fs from 'node:fs';
+import { transform } from './build-mod.mjs';
 export { hashFile, parseArgs, inspectCompatibility, verifyBackup } from '../../lib/prepare-mod.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -35,7 +37,24 @@ switch your running app. Review the packaged result before choosing to launch it
 `;
 
 export function main(args = process.argv.slice(2)) {
-  return prepareMain(args, { modDirectory: here, overlayAtRoot: false, help: HELP, legacyMarkers });
+  return prepareMain(args, {
+    modDirectory: here,
+    overlayAtRoot: false,
+    help: HELP,
+    legacyMarkers,
+    buildOverlay(input, output, { sourceModules }) {
+      const bundles = Object.fromEntries(
+        fs
+          .readdirSync(input)
+          .filter((name) => name.endsWith('.js'))
+          .map((name) => [name, fs.readFileSync(path.join(input, name), 'utf8')]),
+      );
+      const patched = transform(bundles, { sourceModules });
+      fs.mkdirSync(output, { recursive: true });
+      for (const [name, content] of Object.entries(patched))
+        fs.writeFileSync(path.join(output, name), content);
+    },
+  });
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch((error) => {

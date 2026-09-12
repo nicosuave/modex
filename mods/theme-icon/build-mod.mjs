@@ -1,12 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { patchThemeProvider, patchThemeSettings, patchThemeMain } from './source-hooks.mjs';
 const here = import.meta.dirname;
-export function replaceOnce(source, anchor, value) {
-  if (source.split(anchor).length !== 2)
-    throw new Error(`Expected exactly one Theme Icon anchor: ${anchor.slice(0, 100)}`);
-  return source.replace(anchor, value);
-}
 export async function transform(bundles) {
   const output = { ...bundles };
   const find = (prefix) => {
@@ -17,37 +13,9 @@ export async function transform(bundles) {
   const main = find('.vite/build/main-'),
     initial = find('webview/assets/app-initial-'),
     settings = find('webview/assets/general-settings-');
-  const patch = (name, anchor, value) => (output[name] = replaceOnce(output[name], anchor, value));
-  output[initial] =
-    'import * as ThemeIconRuntime from "./theme-icon-runtime.mjs";' + output[initial];
-  patch(
-    initial,
-    'let b=s===`light`?_:y,x=b.fonts.codeFace',
-    'let b=s===`light`?_:y;ThemeIconRuntime.useTheme(u6,{theme:b,appearance:s,id:aO(s===`light`?xv.lightCodeThemeId:xv.darkCodeThemeId),read:Jx,write:Yx,listen:W1t,bridge:H});let x=b.fonts.codeFace',
-  );
-  output[settings] =
-    'import {Settings as ThemeIconSettings} from "./theme-icon-runtime.mjs";' + output[settings];
-  patch(
-    settings,
-    ',T}function Ro(e){',
-    ',(0,$.jsxs)($.Fragment,{children:[T,(0,$.jsx)(ThemeIconSettings,{React:$o,Row:K,Dropdown:he,DropdownButton:Ue,Menu:z,CheckIcon:xn,previews:d,enabled:a===`codex-system`,onEnable:()=>U(t,it.dockIconPreference,`codex-system`)})]})}function Ro(e){',
-  );
-  output[main] = 'const ThemeIconMain=require("./theme-icon-main.cjs");' + output[main];
-  patch(
-    main,
-    'I=e=>{if(e===`app-default`&&t!==a.i.Dev)',
-    'I=e=>{if(ThemeIconMain.apply(e))return;if(e===`app-default`&&t!==a.i.Dev)',
-  );
-  patch(
-    main,
-    '};if(g){L();let e=()=>{let e=A();e===`codex-system`&&I(e)};',
-    '};ThemeIconMain.configure(l,process.resourcesPath,()=>I(A()));if(g){L();let e=()=>{let e=A();e===`codex-system`&&I(e)};',
-  );
-  patch(
-    main,
-    'case`persisted-atom-sync-request`:this.sendPersistedAtomState(e,t.responsePriority);',
-    'case`modex-theme-icon`:if(this.getBrowserOwnerWebContentsForOrigin(e)===e&&(l.BrowserWindow.getFocusedWindow()==null||l.BrowserWindow.getFocusedWindow()?.webContents===e))ThemeIconMain.update(t);break;case`persisted-atom-sync-request`:this.sendPersistedAtomState(e,t.responsePriority);',
-  );
+  output[initial] = patchThemeProvider(output[initial]);
+  output[settings] = patchThemeSettings(output[settings]);
+  output[main] = patchThemeMain(output[main]);
   for (const file of ['runtime', 'state', 'render', 'tint', 'palette']) {
     let content = fs.readFileSync(path.join(here, `${file}.mjs`), 'utf8');
     for (const dependency of ['runtime', 'state', 'render', 'tint', 'palette'])
