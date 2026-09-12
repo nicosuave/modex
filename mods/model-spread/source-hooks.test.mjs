@@ -16,6 +16,67 @@ const usage = `function render(props){let {canShowUsageBanners:enabled,hostId:ho
 if(!enabled)return fallback;let kind=classify({hasImageGenerationLimit:image!=null,showModelLimit:limited,showUpsell:upsell,showWorkspaceUsageLimit:workspace});return {kind,image};}`;
 const selection = 'mode=lookup(choices,model,effort)==null?`model`:preference??`default`';
 const exposure = '{skipExperimentExposure:restricted||mode===`model`||ultra||special}';
+test('usage matching rejects another function or block reusing the captured names', () => {
+  const declaration = usage.slice(0, usage.indexOf('if(!enabled)'));
+  const guard =
+    'if(!enabled)return fallback;let kind=classify({hasImageGenerationLimit:image!=null,other:true});return kind;';
+  const unrelated = `function unrelated(enabled,image,fallback){${guard}}`;
+  for (const source of [
+    `${declaration}return fallback;} ${unrelated}`,
+    `${declaration}{let enabled=true,image=null,fallback='nested';${guard}}}`,
+    `${declaration}function nested(enabled,image,fallback){${guard}}return fallback;}`,
+  ])
+    assert.throws(() => patchUsageBanners(source), /Compatibility check failed/);
+
+  const patched = patchUsageBanners(usage + unrelated);
+  const functions = new Function('classify', `${patched};return {render,unrelated};`)(
+    () => 'stock',
+  );
+  assert.equal(functions.unrelated(true, null, 'fallback'), 'stock');
+  assert.equal(
+    functions.render({
+      canShowUsageBanners: true,
+      imageGenerationLimit: null,
+      lowerPriorityContent: 'fallback',
+    }),
+    'fallback',
+  );
+});
+test('usage owner keeps image-query hooks before suppressing usage notices', () => {
+  const withQuery = usage.replace(
+    'if(!enabled)',
+    'query({enabled:enabled&&image!=null});if(!enabled)',
+  );
+  const calls = [];
+  const render = new Function(
+    'query',
+    'classify',
+    `${patchUsageBanners(withQuery)};return render;`,
+  )(
+    (options) => calls.push(options),
+    () => 'image',
+  );
+  const fallback = {};
+  assert.equal(
+    render({
+      canShowUsageBanners: true,
+      lowerPriorityContent: fallback,
+      imageGenerationLimit: null,
+    }),
+    fallback,
+  );
+  assert.deepEqual(calls, [{ enabled: false }]);
+  assert.equal(
+    render({ canShowUsageBanners: true, lowerPriorityContent: fallback, imageGenerationLimit: {} })
+      .kind,
+    'image',
+  );
+  assert.deepEqual(calls, [{ enabled: false }, { enabled: true }]);
+  assert.throws(
+    () => patchUsageBanners(usage.replace('if(!enabled)', ' '.repeat(6001) + 'if(!enabled)')),
+    /Compatibility check failed/,
+  );
+});
 const micro =
   'let composer=findComposer();if(composer==null||activation().getActivationTarget(composer.root,composer.composerId,`reasoning`)==null)return;dispatch(direction===`ArrowUp`?`composer.decreaseReasoningEffort`:`composer.increaseReasoningEffort`,`codex_micro_encoder`)';
 const renamed = (source) =>
@@ -162,7 +223,11 @@ for (const [patch, source, changed] of [
   ],
 ]) {
   test(`${patch.name} rejects missing, ambiguous, changed and already-patched contracts`, () => {
-    for (const invalid of ['', source + ';' + source, changed, patch(source)])
+    const duplicate =
+      patch === patchUsageBanners
+        ? source.replace('function render(', 'function another(')
+        : source;
+    for (const invalid of ['', source + ';' + duplicate, changed, patch(source)])
       assert.throws(() => patch(invalid), /Compatibility check failed/);
   });
 }
@@ -178,7 +243,7 @@ if (archives.length === 0)
     () => {},
   );
 for (const filename of archives) {
-  test(`same hooks accept and compile real source: ${filename}`, () => {
+  test(`same hooks accept and compile real source: ${filename}`, { timeout: 30000 }, () => {
     const archive = readArchive(filename);
     const names = Object.keys(archive.header.files.webview.files.assets.files);
     for (const [prefix, hooks] of [

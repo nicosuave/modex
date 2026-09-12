@@ -51,12 +51,16 @@ test('fallback consumes socket fd and fails closed on malformed input or native 
 test('transform rejects missing, duplicate and already-patched authorization call sites', () => {
   const input =
     'async function Cae({callTool:e,listTools:t,pipePath:n,socketPeerAuthorizer:r=gd()}){}';
+  const patched = transform(input);
+  expect(patched).not.toBe(input);
+  expect(patched).toContain('modex-app-tools-auth.cjs');
+  expect(() => new Function(patched)).not.toThrow();
   expect(() => transform('')).toThrow();
   expect(() => transform(input + input)).toThrow();
   expect(() =>
     transform(input + input.replace('Cae', 'another').replace('gd()', 'otherFactory()')),
   ).toThrow();
-  expect(() => transform(transform(input))).toThrow();
+  expect(() => transform(patched)).toThrow();
   for (const changed of [
     input.replace('gd()', 'gd(options)'),
     input.replace('gd()', 'await gd()'),
@@ -64,6 +68,7 @@ test('transform rejects missing, duplicate and already-patched authorization cal
     input.replace('socketPeerAuthorizer:', 'peerAuthorizer:'),
     input.replace('r=gd()', 'r=gd(),extra:x'),
   ]) {
+    expect(changed).not.toBe(input);
     expect(() => transform(changed)).toThrow();
   }
 });
@@ -161,21 +166,33 @@ test.skipIf(!fixture || !fs.existsSync(fixture))(
     ).toString();
     const output = transform(input);
     // Both other users of the stock factory must remain outside this repair.
-    for (const signature of [
-      'async function Soe({services:e,pipePath:t=fs(),socketPeerAuthorizer:n=gd()})',
-      'async function Uve({apiImpl:e,nativePipeDirectory:t,maxOutgoingFrameBytes:n=Vve,pipePath:r,socketPeerAuthorizer:i=gd()})',
+    for (const contract of [
+      /async function [\w$]+\(\{services:[\w$]+,pipePath:[\w$]+=[\w$]+\(\),socketPeerAuthorizer:[\w$]+=[\w$]+\(\)\}\)/g,
+      /async function [\w$]+\(\{apiImpl:[\w$]+,nativePipeDirectory:[\w$]+,maxOutgoingFrameBytes:[\w$]+=[\w$]+,pipePath:[\w$]+,socketPeerAuthorizer:[\w$]+=[\w$]+\(\)\}\)/g,
     ]) {
-      expect(input.includes(signature)).toBe(true);
-      expect(output.includes(signature)).toBe(true);
+      const signatures = [...input.matchAll(contract)];
+      expect(signatures).toHaveLength(1);
+      expect(output.includes(signatures[0][0])).toBe(true);
     }
-    const signature = output.match(
-      /async function Cae\(\{callTool:e,listTools:t,pipePath:n,socketPeerAuthorizer:r=.*?\}\)/,
-    )[0];
+    const originalSignatures = [
+      ...input.matchAll(
+        /async function [\w$]+\(\{callTool:[\w$]+,listTools:[\w$]+,pipePath:[\w$]+,socketPeerAuthorizer:(?<authorizer>[\w$]+)=([\w$]+)\(\)\}\)/g,
+      ),
+    ];
+    expect(originalSignatures).toHaveLength(1);
+    const factoryName = originalSignatures[0][2];
+    const patchedSignatures = [
+      ...output.matchAll(
+        /async function [\w$]+\(\{callTool:[\w$]+,listTools:[\w$]+,pipePath:[\w$]+,socketPeerAuthorizer:(?<authorizer>[\w$]+)=.*?\}\)/g,
+      ),
+    ];
+    expect(patchedSignatures).toHaveLength(1);
+    const signature = patchedSignatures[0][0];
     const instantiate = new Function(
       'process',
       'require',
-      'gd',
-      `return (${signature}{return r;});`,
+      factoryName,
+      `return (${signature}{return ${patchedSignatures[0].groups.authorizer};});`,
     );
     let nativeCalls = 0;
     const native = {

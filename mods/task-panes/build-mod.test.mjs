@@ -7,6 +7,16 @@ import { transform, files, providerAdapter } from './build-mod.mjs';
 import { composerAvailable, getPaneContext } from './runtime.mjs';
 import { createDragCoordinator } from './drag.mjs';
 import { selectMods, defaultMods, compatibilityFor } from '../combined/compatibility.mjs';
+import { analyze } from 'eslint-scope';
+import {
+  editSource,
+  literalValue,
+  parseModule,
+  propertyName,
+  unique,
+} from '../../lib/source-contract.mjs';
+import { fixtureSourceModules, renameBindings } from '../../lib/source-contract.test-support.mjs';
+import { inspectNativeModule, patchTaskDrag } from './source-hooks.mjs';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 test('panes are opt-in and canonical selection preserves existing defaults', () => {
@@ -17,7 +27,7 @@ test('panes are opt-in and canonical selection preserves existing defaults', () 
     'task-panes',
   ]);
   expect(Object.keys(compatibilityFor(['task-panes']).files)).toContain(files.localThread);
-  expect(() => transform({})).toThrow('Task Panes anchor');
+  expect(() => transform({})).toThrow('Task Panes');
 });
 
 for (const kind of ['local', 'cloud'])
@@ -60,28 +70,20 @@ for (const kind of ['local', 'cloud'])
       .slice(0, providerAdapter.indexOf('function ModexPaneShell'))
       .replace('export function', 'function');
     const Adapter = new Function(
-      'CT',
-      'uIs',
-      'qFs',
-      'mT',
+      'ModexPaneNative',
       'TaskPanesRuntime',
-      'sT',
-      'ST',
-      'xT',
-      'aIs',
-      'WFs',
       body + ';return ModexPaneProviders;',
     )(
-      () => {},
-      () => {},
-      () => {},
-      React,
+      {
+        initialize() {},
+        React,
+        location: () => location,
+        RouteContext: Route,
+        LocationContext: Location,
+        ScopeProvider: Scope,
+        ComposerProvider: Composer,
+      },
       { usePane: () => React.useContext(getPaneContext(React)) },
-      () => location,
-      Route,
-      Location,
-      Scope,
-      Composer,
     );
     let tree;
     await act(async () => {
@@ -109,48 +111,173 @@ for (const kind of ['local', 'cloud'])
   });
 
 const root = process.env.TASK_PANES_BUNDLES;
-let patched;
-function output() {
-  if (!patched) {
-    const manifest = JSON.parse(fs.readFileSync(new URL('./compatibility.json', import.meta.url)));
-    patched = transform(
-      Object.fromEntries(
-        Object.keys(manifest.files).map((name) => [
-          name,
-          fs.readFileSync(path.join(root, name), 'utf8'),
-        ]),
-      ),
+let outputs;
+function fixtures() {
+  if (!outputs) {
+    const originals = Object.fromEntries(
+      Object.values(files).map((name) => [name, fs.readFileSync(path.join(root, name), 'utf8')]),
     );
+    const context = { sourceModules: fixtureSourceModules(root) };
+    const patched = transform(originals, context);
+    outputs = [{ name: 'stock', originals, patched, context }];
   }
-  return patched;
+  return outputs;
 }
-test.skipIf(!root)(
+const member = (node, name) =>
+  node?.type === 'MemberExpression' && propertyName(node.property) === name;
+const unwrapCall = (node) => (node?.type === 'SequenceExpression' ? node.expressions.at(-1) : node);
+const prop = (node, name) =>
+  node?.properties?.find((item) => item.type === 'Property' && propertyName(item.key) === name)
+    ?.value;
+const has = (node, ...names) => names.every((name) => prop(node, name));
+const isJsx = (node) =>
+  node?.type === 'CallExpression' &&
+  ['jsx', 'jsxs'].some((name) => member(unwrapCall(node.callee), name));
+const id = (node) => {
+  if (node?.type !== 'Identifier') throw Error('Expected a captured native identifier');
+  return node.name;
+};
+function evaluate(source, bindings) {
+  // Execute the captured native code after lexical renaming of its complete
+  // dependency scope, preserving property keys and binding identity.
+  const expression = `(function(${Object.keys(bindings).join(',')}){${source}})`;
+  const renamed = renameBindings(expression);
+  return new Function(`return ${renamed};`)()(...Object.values(bindings));
+}
+function externalBindings(source) {
+  const scope = analyze(parseModule(source).ast, { ecmaVersion: 2024, sourceType: 'module' });
+  return Object.fromEntries(
+    [...new Set(scope.globalScope.through.map((ref) => ref.identifier.name))]
+      .filter((name) => !(name in globalThis))
+      .map((name) => [name, () => null]),
+  );
+}
+function nativeFunction(module, predicate, label) {
+  const { within } = inspectNativeModule(module);
+  return unique(
+    module.ast.body.filter(
+      (node) => node.type === 'FunctionDeclaration' && predicate(node, within),
+    ),
+    label,
+  );
+}
+function rendererBindings(module, functions) {
+  const source = functions.map(module.text).join(';');
+  const bindings = externalBindings(source);
+  const { within } = inspectNativeModule(module);
+  for (const fn of functions)
+    for (const call of within(fn, (node) => node.type === 'CallExpression')) {
+      const target = unwrapCall(call.callee);
+      if (member(target, 'c'))
+        bindings[id(target.object)] = {
+          c: (length) => Array(length).fill(Symbol.for('react.memo_cache_sentinel')),
+        };
+      if (isJsx(call))
+        bindings[id(target.object)] = {
+          jsx: (type, props, key) => ({ type, props, key }),
+          jsxs: (type, props, key) => ({ type, props, key }),
+        };
+    }
+  return { source, bindings };
+}
+function referenceFunction(module) {
+  return nativeFunction(
+    module,
+    (fn, within) =>
+      within(
+        fn,
+        (node) => node.type === 'CallExpression' && member(node.callee, 'elementsFromPoint'),
+      ).length === 1 &&
+      within(fn, (node) => node.type === 'CallExpression' && member(node.callee, 'closest'))
+        .length === 1,
+    'native task-reference lookup',
+  );
+}
+function dragEnd(module) {
+  const lookup = referenceFunction(module);
+  const { within, one, valueOf } = inspectNativeModule(module);
+  const provider = nativeFunction(
+    module,
+    (fn) =>
+      within(
+        fn,
+        (node) =>
+          node.type === 'ObjectExpression' && has(node, 'onDragStart', 'onDragEnd', 'onDragCancel'),
+      ).length === 1 &&
+      within(fn, (node) => node.type === 'CallExpression' && node.callee.name === lookup.id.name)
+        .length > 0,
+    'native drag provider',
+  );
+  const callbacks = one(
+    provider,
+    (node) =>
+      node.type === 'ObjectExpression' && has(node, 'onDragStart', 'onDragEnd', 'onDragCancel'),
+    'native drag callbacks',
+  );
+  let end = prop(callbacks, 'onDragEnd');
+  while (end.type === 'Identifier') end = valueOf(end, provider);
+  return { lookup, end, provider, callbacks };
+}
+
+function fixtureTest(name, fn) {
+  test.skipIf(!root)(
+    name,
+    () => {
+      for (const fixture of fixtures()) fn(fixture);
+    },
+    120000,
+  );
+}
+
+fixtureTest(
   'tall Priority and dated rows use native task drags without changing other rows',
-  () => {
-    const code = output()[files.primary];
-    const extract = (start, end) => code.slice(code.indexOf(start), code.indexOf(end));
-    const jsx = (type, props, key) => ({ type, props, key });
+  (fixture) => {
+    const module = parseModule(fixture.patched[files.primary]);
+    const { within, one } = inspectNativeModule(module);
+    const owner = nativeFunction(
+      module,
+      (fn) =>
+        within(fn, (node) => node.type === 'ObjectPattern' && has(node, 'key', 'row')).length ===
+          1 &&
+        within(fn, (node) => node.type === 'CallExpression' && member(node.callee, 'sidebarKey'))
+          .length > 0,
+      'native tall-row renderer',
+    );
+    // The same decoder occurs in the guard and payload; both must use the same native router object.
+    const routingNames = [
+      ...new Set(
+        within(
+          owner,
+          (node) => node.type === 'CallExpression' && member(node.callee, 'sidebarKey'),
+        ).map((node) => id(node.callee.object)),
+      ),
+    ];
+    expect(routingNames).toHaveLength(1);
+    const drag = one(
+      owner,
+      (node) => isJsx(node) && has(node.arguments[1], 'threadKey', 'children'),
+      'native draggable row',
+    );
+    const { source, bindings } = rendererBindings(module, [owner]);
     const nativeDragRow = () => {};
-    const decode = (key) => {
-      const value = key.replace(/^codex:thread:/, '');
-      return /^(local|remote):/.test(value) ? value : null;
+    bindings[routingNames[0]] = {
+      sidebarKey: (key) => {
+        const value = key.replace(/^codex:thread:/, '');
+        return /^(local|remote):/.test(value) ? value : null;
+      },
     };
-    const renderRow = new Function(
-      'Cy',
-      'h4',
-      'nY',
-      extract('function epr(', 'function tpr(') + ';return epr;',
-    )(decode, { jsx }, nativeDragRow);
+    bindings[id(drag.arguments[0])] = nativeDragRow;
+    const render = evaluate(`${source};return ${owner.id.name};`, bindings);
     for (const key of ['local:task-a', 'local:ssh-task', 'remote:cloud-a']) {
       const row = { title: key, secondaryContent: 'project and host' };
-      const rendered = renderRow({ key: `codex:thread:${key}`, row });
-      expect(rendered.type).toBe(nativeDragRow);
-      expect(rendered.props).toEqual({ threadKey: key, children: row });
-      expect(rendered.key).toBe(`codex:thread:${key}`);
+      const result = render({ key: `codex:thread:${key}`, row });
+      expect(result.type).toBe(nativeDragRow);
+      expect(result.props).toEqual({ threadKey: key, children: row });
+      expect(result.key).toBe(`codex:thread:${key}`);
     }
     for (const key of ['chatgpt:conversation:a', 'codex:project:a', 'content-tab:a']) {
       const row = { title: key };
-      expect(renderRow({ key, row })).toEqual({
+      expect(render({ key, row })).toEqual({
         type: 'div',
         props: { role: 'listitem', children: row },
         key,
@@ -159,11 +286,96 @@ test.skipIf(!root)(
   },
 );
 
-test.skipIf(!root)(
+fixtureTest(
   'native tall-row drag payload retains local, SSH, and cloud task identity',
-  () => {
-    const code = output()[files.primary];
-    const body = code.slice(code.indexOf('function DMn('), code.indexOf('function kMn('));
+  (fixture) => {
+    const module = parseModule(fixture.patched[files.primary]);
+    const { within, one, valueOf } = inspectNativeModule(module);
+    const wrapper = nativeFunction(
+      module,
+      (fn) =>
+        within(
+          fn,
+          (node) =>
+            isJsx(node) &&
+            has(
+              node.arguments[1],
+              'threadKey',
+              'containerId',
+              'sourceProjectKind',
+              'threadDragState',
+              'children',
+            ),
+        ).length === 1 &&
+        within(fn, (node) => node.type === 'ObjectPattern' && has(node, 'threadKey', 'children'))
+          .length === 1,
+      'native nonsortable wrapper',
+    );
+    const payloadCall = one(
+      wrapper,
+      (node) =>
+        isJsx(node) &&
+        has(
+          node.arguments[1],
+          'threadKey',
+          'containerId',
+          'sourceProjectKind',
+          'threadDragState',
+          'children',
+        ),
+      'native drag payload component',
+    );
+    const owner = unique(
+      module.ast.body.filter(
+        (node) =>
+          node.type === 'FunctionDeclaration' && node.id.name === id(payloadCall.arguments[0]),
+      ),
+      'native drag payload renderer',
+    );
+    const drag = one(
+      owner,
+      (node) =>
+        node.type === 'CallExpression' &&
+        has(node.arguments[0], 'id', 'disabled', 'data') &&
+        has(prop(node.arguments[0], 'data'), 'kind', 'thread'),
+      'native draggable hook',
+    );
+    const thread = prop(prop(drag.arguments[0], 'data'), 'thread');
+    const reference = valueOf(prop(thread, 'threadReference'), owner);
+    const referenceOwner = unique(
+      module.ast.body.filter(
+        (node) => node.type === 'FunctionDeclaration' && node.id.name === id(reference.callee),
+      ),
+      'native task-reference builder',
+    );
+    const entryRead = valueOf(prop(reference.arguments[0], 'entry'), owner);
+    const threadId = valueOf(prop(thread, 'threadId'), owner);
+    expect(threadId.type).toBe('LogicalExpression');
+    const primaryId = threadId.left,
+      fallbackId = threadId.right;
+    const contexts = within(
+      owner,
+      (node) => node.type === 'CallExpression' && member(unwrapCall(node.callee), 'useContext'),
+    );
+    const titleRead = one(
+      referenceOwner,
+      (node) => node.type === 'CallExpression' && node.callee.name === id(entryRead.callee),
+      'native catalog title lookup',
+    );
+    const translate = one(
+      owner,
+      (node) =>
+        node.type === 'CallExpression' &&
+        member(node.callee, 'toString') &&
+        member(node.callee.object, 'Translate'),
+      'native transform formatting',
+    );
+    const selected = one(
+      owner,
+      (node) => node.type === 'CallExpression' && member(node.callee, 'some'),
+      'selected drag rows',
+    );
+    const selectedContext = valueOf(selected.callee.object, owner);
     for (const entry of [
       { kind: 'local', conversationId: 'task-a', hostId: 'local', catalogTitle: 'Local task' },
       {
@@ -174,33 +386,27 @@ test.skipIf(!root)(
       },
       { kind: 'remote', task: { id: 'cloud-a' } },
     ]) {
+      const { source, bindings } = rendererBindings(module, [owner, referenceOwner]);
+      for (const call of contexts) {
+        bindings[id(unwrapCall(call.callee).object)] = { useContext: (context) => context };
+        bindings[id(call.arguments[0])] = false;
+      }
+      bindings[id(selectedContext.arguments[0])] = [];
+      bindings[id(entryRead.arguments[0])] = 'entry';
+      bindings[id(titleRead.arguments[0])] = 'title';
+      bindings[id(entryRead.callee)] = (atom) => (atom === 'entry' ? entry : null);
+      bindings[id(primaryId.callee)] = (value) =>
+        value.kind === 'local' ? value.conversationId : value.task.id;
+      bindings[id(fallbackId.callee)] = () => null;
+      bindings[id(translate.callee.object.object)] = { Translate: { toString: () => undefined } };
       let payload;
+      bindings[id(drag.callee)] = (options) => {
+        payload = options.data.thread;
+        return { attributes: {}, listeners: { onPointerDown: () => {} }, isDragging: false };
+      };
+      const render = evaluate(`${source};return ${owner.id.name};`, bindings);
       const key =
         entry.kind === 'local' ? `local:${entry.conversationId}` : `remote:${entry.task.id}`;
-      const bindings = {
-        rY: { c: (length) => Array(length).fill(Symbol.for('react.memo_cache_sentinel')) },
-        iY: { useContext: (context) => context },
-        Rq: [],
-        Vq: false,
-        jm: (atom) => (atom === 'entry' ? entry : null),
-        Wu: 'entry',
-        kS: 'title',
-        qx: 'local',
-        eY: (value) => (value.kind === 'local' ? value.conversationId : value.task.id),
-        rE: () => null,
-        DS: (kind) => kind,
-        aY: { jsx: (type, props) => ({ type, props }) },
-        $J: () => {},
-        Z: (...values) => values.filter(Boolean).join(' '),
-        Uw: { Translate: { toString: () => undefined } },
-        noe: (options) => {
-          payload = options.data.thread;
-          return { attributes: {}, listeners: { onPointerDown: () => {} }, isDragging: false };
-        },
-      };
-      const render = new Function(...Object.keys(bindings), body + ';return DMn;')(
-        ...Object.values(bindings),
-      );
       const row = render({ threadKey: key, containerId: null, children: 'Tall row' });
       expect(row.props.children.props.onPointerDown).toBeFunction();
       expect(payload.threadKey).toBe(key);
@@ -213,13 +419,41 @@ test.skipIf(!root)(
     }
   },
 );
-test.skipIf(!root)(
+
+fixtureTest(
   'transformed native composer registry never selects a hidden or unfocused pane',
-  () => {
-    const code = output()[files.initial],
-      start = code.indexOf('function hN(){'),
-      end = code.indexOf('function _7n(', start);
-    const range = code.slice(start, end);
+  (fixture) => {
+    const module = parseModule(fixture.patched[files.initial]);
+    const { within, one } = inspectNativeModule(module);
+    const choose = nativeFunction(
+      module,
+      (fn) =>
+        within(
+          fn,
+          (node) =>
+            node.type === 'CallExpression' &&
+            member(node.callee, 'querySelectorAll') &&
+            literalValue(node.arguments[0]) === '[data-codex-composer]',
+        ).length === 1,
+      'native composer selector',
+    );
+    const primary = nativeFunction(
+      module,
+      (fn) =>
+        within(fn, (node) => node.type === 'ObjectPattern' && has(node, 'isPrimaryComposer'))
+          .length > 0 && within(fn, (node) => node.type === 'ForOfStatement').length === 1,
+      'primary composer selector',
+    );
+    const registry = one(
+      choose,
+      (node) => node.type === 'CallExpression' && member(node.callee, 'keys'),
+      'composer registry',
+    );
+    const connected = within(
+      choose,
+      (node) => member(node, 'isConnected') && node.object.type === 'Identifier',
+    );
+    const source = [choose, primary].map(module.text).join(';');
     const element = (active, visible = true) => ({
       isConnected: true,
       closest: () => ({
@@ -230,49 +464,45 @@ test.skipIf(!root)(
     });
     const hidden = element(true, false),
       inactive = element(false),
-      active = element(true),
-      map = new Map([
-        [hidden, { isPrimaryComposer: true }],
-        [inactive, { isPrimaryComposer: true }],
-        [active, { isPrimaryComposer: true }],
-      ]);
-    const choose = new Function(
-      'gN',
-      'yN',
-      'TaskPanesRuntime',
-      'document',
-      'T7n',
-      range + ';return hN();',
-    );
-    expect(
-      choose(
-        map,
-        hidden,
-        { composerAvailable },
-        { querySelectorAll: () => [hidden, inactive, active] },
-        [],
-      ),
-    ).toBe(active);
-    expect(
-      choose(
-        new Map([[hidden, { isPrimaryComposer: true }]]),
-        hidden,
-        { composerAvailable },
-        { querySelectorAll: () => [hidden] },
-        [],
-      ),
-    ).toBe(null);
+      active = element(true);
+    function run(entries) {
+      const bindings = externalBindings(source);
+      bindings[id(registry.callee.object)] = new Map(
+        entries.map((element) => [element, { isPrimaryComposer: true }]),
+      );
+      for (const item of connected)
+        if (Object.hasOwn(bindings, item.object.name)) bindings[item.object.name] = hidden;
+      for (const fn of [choose, primary])
+        for (const call of within(
+          fn,
+          (node) => node.type === 'CallExpression' && member(node.callee, 'composerAvailable'),
+        ))
+          bindings[id(call.callee.object)] = { composerAvailable };
+      for (const fn of [choose, primary])
+        for (const call of within(
+          fn,
+          (node) => node.type === 'CallExpression' && member(node.callee, 'at'),
+        ))
+          if (
+            call.callee.object.type === 'Identifier' &&
+            Object.hasOwn(bindings, call.callee.object.name)
+          )
+            bindings[call.callee.object.name] = [];
+      bindings.document = { querySelectorAll: () => entries };
+      return evaluate(`${source};return ${choose.id.name}();`, bindings);
+    }
+    expect(run([hidden, inactive, active])).toBe(active);
+    expect(run([hidden])).toBe(null);
   },
 );
-test.skipIf(!root)(
+
+fixtureTest(
   'actual stock drag end still inserts references, while accepted pane drops cancel reordering',
-  () => {
-    const code = output()[files.primary],
-      start = code.indexOf('J=e=>{if(Hjn(O.current,k.current)==null&&TaskPanesDrag.drop())'),
-      end = code.indexOf(',t[15]=a,t[16]=o,t[17]=s,t[18]=J', start);
-    expect(start).toBeGreaterThan(0);
-    expect(end).toBeGreaterThan(start);
-    const handler = code.slice(start + 2, end);
+  (fixture) => {
+    const module = parseModule(fixture.patched[files.primary]);
+    const { within, one, valueOf } = inspectNativeModule(module);
+    const { lookup, end, callbacks } = dragEnd(module);
+    const endSource = module.text(end);
     for (const reference of [true, false]) {
       const drag = createDragCoordinator();
       let paneDrops = 0,
@@ -290,85 +520,141 @@ test.skipIf(!root)(
       const target = {},
         payload = [{ threadId: 'a', hostId: 'local', title: 'A' }],
         thread = { threadId: 'a', threadKey: 'local:a' };
-      const bindings = {
-        TaskPanesDrag: drag,
-        Hjn: () => (reference ? target : null),
-        q: () => cancels++,
-        l: { current: null },
-        S: () => {},
-        O: { current: 100 },
-        k: { current: 100 },
-        qJ: (x) => x,
-        Ljn: () => null,
-        E: { current: [thread] },
-        Ckn: () => payload,
-        RJ: () => {},
-        HJ: () => {},
-        A: { current: null },
-        w: { current: null },
-        F: () => {},
-        L: () => {},
-        v: () => {},
-        m: () => {},
-        Ujn: (element, items) => {
-          expect(element).toBe(target);
-          expect(items).toEqual(payload);
-          references++;
-          return true;
-        },
-      };
-      const fn = new Function(...Object.keys(bindings), 'return ' + handler)(
-        ...Object.values(bindings),
+      const bindings = externalBindings(`const handler=${endSource};`);
+      for (const node of within(
+        end,
+        (node) => member(node, 'current') && node.object.type === 'Identifier',
+      ))
+        if (Object.hasOwn(bindings, node.object.name))
+          bindings[node.object.name] = { current: null };
+      const drop = one(
+        end,
+        (node) => node.type === 'CallExpression' && member(node.callee, 'drop'),
+        'pane drop',
       );
-      fn({ active: { data: { current: { kind: 'sidebar-item', thread } } } });
+      bindings[id(drop.callee.object)] = drag;
+      bindings[id(lookup.id)] = () => (reference ? target : null);
+      bindings[id(prop(callbacks, 'onDragCancel'))] = () => cancels++;
+      const nativeThread = one(
+        end,
+        (node) =>
+          node.type === 'CallExpression' &&
+          member(node.arguments[0], 'current') &&
+          member(node.arguments[0].object, 'data'),
+        'native drag event decoder',
+      );
+      bindings[id(nativeThread.callee)] = (value) => value;
+      const insertion = one(
+        end,
+        (node) =>
+          node.type === 'CallExpression' &&
+          node.arguments.length === 2 &&
+          node.arguments.every((arg) => arg.type === 'Identifier') &&
+          node.callee.type === 'Identifier' &&
+          within(
+            end,
+            (n) => n.type === 'IfStatement' && within(n.test, (c) => c === node).length > 0,
+          ).length > 0,
+        'native reference insertion',
+      );
+      const payloadValue = valueOf(insertion.arguments[1], end);
+      const selectedPayload = one(
+        payloadValue,
+        (node) => node.type === 'CallExpression',
+        'reference payload builder',
+      );
+      bindings[id(selectedPayload.callee)] = () => payload;
+      const selection = valueOf(selectedPayload.arguments[0], end);
+      expect(member(selection, 'current')).toBe(true);
+      bindings[id(selection.object)] = { current: [thread] };
+      bindings[id(insertion.callee)] = (element, items) => {
+        expect(element).toBe(target);
+        expect(items).toEqual(payload);
+        references++;
+        return true;
+      };
+      const handler = evaluate(`return ${endSource};`, bindings);
+      handler({ active: { data: { current: { kind: 'sidebar-item', thread } } } });
       expect(references).toBe(reference ? 1 : 0);
       expect(paneDrops).toBe(reference ? 0 : 1);
       expect(cancels).toBe(reference ? 0 : 1);
     }
   },
 );
-test.skipIf(!root)('exact transforms reject repeated application and changed call sites', () => {
-  expect(() => transform(output())).toThrow('Task Panes anchor');
-  const changed = {
-    ...output(),
-    [files.initial]: output()[files.initial].replace('ModexTaskPage', 'UnknownTaskPage'),
-  };
-  expect(() => transform(changed)).toThrow();
-});
 
-test.skipIf(!root)(
+fixtureTest(
+  'exact transforms reject repeated application and changed native call sites',
+  (fixture) => {
+    expect(() => transform(fixture.patched, fixture.context)).toThrow();
+    const module = parseModule(fixture.originals[files.primary]);
+    const { one, within } = inspectNativeModule(module);
+    const row = nativeFunction(
+      module,
+      (fn) =>
+        within(fn, (node) => node.type === 'ObjectPattern' && has(node, 'key', 'row')).length ===
+          1 &&
+        within(
+          fn,
+          (node) => isJsx(node) && literalValue(prop(node.arguments[1], 'role')) === 'listitem',
+        ).length === 1,
+      'tall row native contract',
+    );
+    const role = one(
+      row,
+      (node) => isJsx(node) && literalValue(prop(node.arguments[1], 'role')) === 'listitem',
+      'native row role',
+    );
+    const target = prop(role.arguments[1], 'role');
+    const changed = editSource(fixture.originals[files.primary], [
+      { start: target.start, end: target.end, text: '"unsupported-row-role"' },
+    ]);
+    expect(() => patchTaskDrag(parseModule(changed))).toThrow();
+  },
+);
+
+fixtureTest(
   'stock reference lookup yields whole-panel hits only while the workspace accepts the task drag',
-  () => {
-    const code = output()[files.primary],
-      start = code.indexOf('function Hjn('),
-      end = code.indexOf('function Ujn(', start);
+  (fixture) => {
+    const module = parseModule(fixture.patched[files.primary]);
+    const { one } = inspectNativeModule(module);
+    const owner = referenceFunction(module);
+    const source = module.text(owner);
     class Element {
       closest() {
         return this;
       }
     }
-    const target = new Element(),
-      registry = new WeakMap([[target, { hostId: 'local' }]]);
+    const target = new Element();
     let accepts = false;
-    const lookup = new Function(
-      'TaskPanesDrag',
-      'document',
-      'HTMLElement',
-      'WJ',
-      'UJ',
-      code.slice(start, end) + ';return Hjn;',
-    )(
-      { claims: () => accepts },
-      { elementsFromPoint: () => [target] },
-      Element,
-      registry,
-      'data-codex-thread-reference-drop-target',
+    const bindings = externalBindings(source);
+    const claim = one(
+      owner,
+      (node) => node.type === 'CallExpression' && member(node.callee, 'claims'),
+      'pane drag claim',
     );
-    expect(lookup(100, 100)).toBe(target);
+    bindings[id(claim.callee.object)] = { claims: () => accepts };
+    bindings.document = { elementsFromPoint: () => [target] };
+    bindings.HTMLElement = Element;
+    const lookup = one(
+      owner,
+      (node) => node.type === 'CallExpression' && member(node.callee, 'get'),
+      'native reference target registry',
+    );
+    bindings[id(lookup.callee.object)] = new WeakMap([[target, { hostId: 'local' }]]);
+    const closest = one(
+      owner,
+      (node) => node.type === 'CallExpression' && member(node.callee, 'closest'),
+      'native reference target attribute',
+    );
+    for (const value of closest.arguments[0].expressions ?? [])
+      if (value.type === 'Identifier')
+        bindings[value.name] = 'data-codex-thread-reference-drop-target';
+    const find = evaluate(`${source};return ${owner.id.name};`, bindings);
+    expect(find(100, 100)).toBe(target);
     accepts = true;
-    expect(lookup(100, 100)).toBeNull();
+    expect(find(100, 100)).toBeNull();
     accepts = false;
-    expect(lookup(100, 100)).toBe(target);
-    expect(lookup(100, 100, 'other-host')).toBeNull();
+    expect(find(100, 100)).toBe(target);
+    expect(find(100, 100, 'other-host')).toBeNull();
   },
 );

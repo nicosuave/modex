@@ -12,10 +12,11 @@ import {
   componentManifests,
 } from './compatibility.mjs';
 import { recordChanges } from '../../lib/build-receipt.mjs';
+import { directoryModules } from '../../lib/source-modules.mjs';
 export async function transform(
   bundles,
   mods,
-  { onStage = () => {}, mapOutput = (value) => value } = {},
+  { onStage = () => {}, mapOutput = (value) => value, sourceModules } = {},
 ) {
   const selected = selectMods(mods);
   // Both manifests validate pristine bytes. Only transforms compose: the shared
@@ -28,7 +29,7 @@ export async function transform(
         composed[`webview/assets/${name}`],
       ]),
     );
-    const spread = modelSpread(spreadInputs);
+    const spread = modelSpread(spreadInputs, { sourceModules });
     const next = {
       ...composed,
       ...Object.fromEntries(
@@ -48,7 +49,7 @@ export async function transform(
     composed = next;
   }
   if (selected.includes('task-panes')) {
-    const next = taskPanes(composed);
+    const next = taskPanes(composed, { sourceModules });
     onStage(
       recordChanges('task-panes', 'task pane adapters', mapOutput(composed), mapOutput(next)),
     );
@@ -87,7 +88,9 @@ if (import.meta.main) {
     ]),
   );
   validateInputs(bundles);
-  const patched = await transform(bundles);
+  const patched = await transform(bundles, undefined, {
+    sourceModules: directoryModules(path.join(input, 'webview/assets')),
+  });
   for (const [name, content] of Object.entries(patched)) {
     const target = path.join(output, name);
     fs.mkdirSync(path.dirname(target), { recursive: true });

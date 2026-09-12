@@ -5,6 +5,7 @@ import { buildRuntime, computeHookHash, sourceForMods } from './build.mjs';
 import { mainPath } from '../app-tools-auth/patch.mjs';
 import { inspectCompatibility } from '../../lib/prepare-mod.mjs';
 import { rendererModules } from './contract.mjs';
+import { parseModule, literalValue, propertyName, unique } from '../../lib/source-contract.mjs';
 const compatibility = JSON.parse(
   fs.readFileSync(new URL('./compatibility.json', import.meta.url), 'utf8'),
 );
@@ -12,14 +13,35 @@ export const protocolPath = Object.keys(compatibility.files)[0];
 export function readDevelopmentProtocol(source, options = {}) {
   return inspectCompatibility(source, compatibility, options).bundles.get(protocolPath);
 }
-const protocolAnchor = 'function nt(e){ot(),o.protocol.handle(`app`,async t=>{let n=et(t.url,e);';
 export function transformProtocol(code) {
-  if (code.split(protocolAnchor).length !== 2)
+  if (code.includes('modex-development-main.cjs'))
     throw Error('Unsupported development protocol call site');
-  return code.replace(
-    protocolAnchor,
-    'function nt(e){ot(),o.protocol.handle(`app`,async t=>{const modexResponse=require(`./modex-development-main.cjs`).responseFor(t);if(modexResponse)return modexResponse;let n=et(t.url,e);',
+  const parsed = parseModule(code);
+  const call = unique(
+    parsed
+      .ofType('CallExpression')
+      .filter(
+        (node) =>
+          node.callee.type === 'MemberExpression' &&
+          propertyName(node.callee.property) === 'handle' &&
+          node.callee.object.type === 'MemberExpression' &&
+          propertyName(node.callee.object.property) === 'protocol' &&
+          literalValue(node.arguments[0]) === 'app',
+      ),
+    'Unsupported development protocol call site',
   );
+  const callback = call.arguments[1];
+  if (
+    !callback?.async ||
+    callback.body?.type !== 'BlockStatement' ||
+    callback.params.length !== 1 ||
+    callback.params[0].type !== 'Identifier'
+  )
+    throw Error('Unsupported development protocol callback');
+  const request = callback.params[0].name;
+  const insertion = callback.body.start + 1;
+  const hook = `const modexResponse=require(\`./modex-development-main.cjs\`).responseFor(${request});if(modexResponse)return modexResponse;`;
+  return code.slice(0, insertion) + hook + code.slice(insertion);
 }
 export function inspectDevelopmentForBuild(root, mods, source, options = {}) {
   if (!path.isAbsolute(root)) throw Error('--dev-root must be an absolute development directory');

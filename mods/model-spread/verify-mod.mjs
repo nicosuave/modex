@@ -7,6 +7,7 @@ import { inspectCompatibility } from './prepare-mod.mjs';
 import { entryFor } from '../../lib/asar.mjs';
 import { transform } from './build-mod.mjs';
 import { verifyRepair } from '../app-tools-auth/patch.mjs';
+import { archiveModules } from '../../lib/source-modules.mjs';
 const args = process.argv.slice(2);
 if (args.length === 1 && args[0] === '--help') {
   console.log(
@@ -28,8 +29,9 @@ if (args.length === 1 && args[0] === '--help') {
     const originals = Object.fromEntries(
       [...bundles].map(([name, bytes]) => [name, bytes.toString('utf8')]),
     );
-    const patched = transform(originals);
-    if (JSON.stringify(patched) !== JSON.stringify(transform(originals)))
+    const context = { sourceModules: archiveModules(archive) };
+    const patched = transform(originals, context);
+    if (JSON.stringify(patched) !== JSON.stringify(transform(originals, context)))
       throw Error('Transform output is not deterministic');
     const parser = new Bun.Transpiler({ loader: 'js' });
     for (const [name, content] of Object.entries(patched)) {
@@ -46,6 +48,10 @@ if (args.length === 1 && args[0] === '--help') {
     }
     const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'model-spread-verify-'));
     try {
+      fs.writeFileSync(
+        path.join(temporary, 'source-archive.json'),
+        JSON.stringify({ archivePath: archive.filename }),
+      );
       for (const [name, bytes] of bundles) fs.writeFileSync(path.join(temporary, name), bytes);
       const result = spawnSync(process.execPath, ['test'], {
         cwd: path.resolve(import.meta.dirname, '../..'),

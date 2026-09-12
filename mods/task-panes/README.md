@@ -34,7 +34,7 @@ The existing **drop-to-reference** behavior takes priority over pane placement: 
 
 ## Build and verify
 
-The exact supported stock build is **26.903.71938 (8576)**. The [compatibility manifest](compatibility.json) gates the patched bundles by hash, and each transform requires a unique matching anchor. Unknown builds require a reviewed adaptation; do not change hashes alone or bypass the gate.
+The reviewed baseline is **26.903.71938 (8576)**. Manual verification uses the [compatibility manifest](compatibility.json); `update` and `--current-source` discover roles from the current stock source. The transforms require unique semantic contracts for routes, providers, native components, composer effects, and sidebar drags. Renamed bindings are covered by behavioral tests. Changed or ambiguous behavior still requires a source-backed repair; do not add per-release alias tables or change hashes alone.
 
 Run from the repository root:
 

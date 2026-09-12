@@ -1,44 +1,54 @@
 export function ModelSpreadSettings({ hostId = 'local', row: Row }) {
-  Yqr();
-  const settings = ModelSpreadMod.useSettings(S7);
-  const scope = Oe(Ke);
-  const { data } = gO({ hostId });
+  const {
+    React,
+    scopeHook,
+    scopeKey,
+    modelsHook,
+    defaultChoices,
+    selectionMode,
+    ModelLabel,
+    Message,
+    effortLabels,
+  } = modelSpreadBindings();
+  const settings = ModelSpreadMod.useSettings(React);
+  const scope = scopeHook(scopeKey);
+  const { data } = modelsHook({ hostId });
   const models = data?.models ?? [];
   const defaults = ModelSpreadMod.defaultChoices(
     hostId,
-    IIe(models, { includeUltraInSlider: false }),
+    defaultChoices(models, { includeUltraInSlider: false }),
   );
   const N = MSNative();
-  const trigger = S7.createElement(
+  const trigger = React.createElement(
     N.SettingsTrigger,
     { disabled: !data, chevronClassName: 'hidden' },
     'Configure…',
   );
-  const editor = S7.createElement(MSEditor, {
-    React: S7,
+  const editor = React.createElement(MSEditor, {
+    React,
     Native: N,
     Picker: ModelSpreadSlotPicker,
     models,
     defaults,
     trigger,
-    onSave: () => scope.set($w, 'default'),
+    onSave: () => scope.set(selectionMode, 'default'),
     modelLabel: (slot) =>
-      S7.createElement(I4, {
+      React.createElement(ModelLabel, {
         model: slot.model,
         displayName: slot.modelLabel,
         stripGptPrefix: false,
       }),
-    effortLabel: (effort) => S7.createElement(X, { ...P4[effort] }),
+    effortLabel: (effort) => React.createElement(Message, { ...effortLabels[effort] }),
   });
   return Row
-    ? S7.createElement(Row, {
+    ? React.createElement(Row, {
         label: 'Model spread',
         description: settings.slots
           ? `${settings.slots.length} slots shared by the slider and Micro knob`
           : 'Default model and reasoning spread',
         control: editor,
       })
-    : S7.createElement(
+    : React.createElement(
         'div',
         {
           style: {
@@ -49,20 +59,22 @@ export function ModelSpreadSettings({ hostId = 'local', row: Row }) {
             padding: '16px 0',
           },
         },
-        S7.createElement('span', null, 'Model spread'),
+        React.createElement('span', null, 'Model spread'),
         editor,
       );
 }
 function ModelSpreadSlotPicker({ models, slot, onChange }) {
-  const [open, setOpen] = S7.useState(false);
+  const { React, allChoices, Picker, ModelLabel, Message, effortLabels, CheckIcon } =
+    modelSpreadBindings();
+  const [open, setOpen] = React.useState(false);
   const N = MSNative();
   const options = models.map((model) => ({ model, disabledReason: null }));
-  const choices = TAe(models, { stripGptPrefix: false }).map((choice, index) => ({
+  const choices = allChoices(models, { stripGptPrefix: false }).map((choice, index) => ({
     ...choice,
     powerSettingIndex: index,
   }));
   const model = models.find((m) => m.model === slot.model);
-  return S7.createElement(
+  return React.createElement(
     'div',
     {
       className: 'ms-slot-picker',
@@ -73,7 +85,7 @@ function ModelSpreadSlotPicker({ models, slot, onChange }) {
         alignItems: 'center',
       },
     },
-    S7.createElement(tqr, {
+    React.createElement(Picker, {
       align: 'end',
       models,
       modelOptions: options,
@@ -93,43 +105,40 @@ function ModelSpreadSlotPicker({ models, slot, onChange }) {
       },
       onSelectModelOption: () => setOpen(false),
       onSelectReasoningEffort: (reasoningEffort) => onChange({ ...slot, reasoningEffort }),
-      triggerButton: S7.createElement(
+      triggerButton: React.createElement(
         N.SettingsTrigger,
         { 'aria-label': 'Slot model', style: { width: 'fit-content', maxWidth: '100%' } },
-        S7.createElement(I4, {
+        React.createElement(ModelLabel, {
           model: slot.model,
           displayName: model?.displayName,
           stripGptPrefix: false,
         }),
       ),
     }),
-    S7.createElement(
+    React.createElement(
       N.Menu,
       {
         align: 'end',
         contentWidth: 'menuNarrow',
-        triggerButton: S7.createElement(
+        triggerButton: React.createElement(
           N.SettingsTrigger,
           { 'aria-label': 'Reasoning level', style: { width: '100%' } },
-          S7.createElement(X, { ...P4[slot.reasoningEffort] }),
+          React.createElement(Message, { ...effortLabels[slot.reasoningEffort] }),
         ),
       },
       model?.supportedReasoningEfforts.map((e) =>
-        S7.createElement(
+        React.createElement(
           N.Items.Item,
           {
             key: e.reasoningEffort,
             role: 'menuitemradio',
             'aria-checked': e.reasoningEffort === slot.reasoningEffort,
-            RightIcon: e.reasoningEffort === slot.reasoningEffort ? jT : undefined,
+            RightIcon: e.reasoningEffort === slot.reasoningEffort ? CheckIcon : undefined,
             onSelect: () => onChange({ ...slot, reasoningEffort: e.reasoningEffort }),
           },
-          S7.createElement(X, { ...P4[e.reasoningEffort] }),
+          React.createElement(Message, { ...effortLabels[e.reasoningEffort] }),
         ),
       ),
     ),
   );
 }
-
-// Selectable rows moved from a standalone chunk into the native primary bundle.
-export { bKn as ModelSpreadSelectableRow, SKn as initializeModelSpreadSelectableRow };
