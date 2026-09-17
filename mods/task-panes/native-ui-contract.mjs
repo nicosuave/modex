@@ -4,6 +4,7 @@ import {
   propertyName,
   unique,
   bindingInitializer,
+  lexicalBindings,
   lazyInitializerOwner as initializerContaining,
 } from '../../lib/source-contract.mjs';
 
@@ -158,15 +159,41 @@ export function discoverNativeUi(module) {
     ),
     'native maximize/restore icon choice',
   );
+  const toggleProps = unique(
+    within(
+      module,
+      toggle,
+      (node) =>
+        node.type === 'ObjectExpression' &&
+        literalValue(properties(node).get('data-app-shell-workspace-layout-toggle')) ===
+          'right-panel',
+    ),
+    'native workspace toggle props',
+  );
+  const bindings = lexicalBindings(module);
+  // Stock shares memoized toggle props between viewer and toolbar controls.
+  // Follow lexical aliases to their object write; cache reads have no role here.
+  function refersToToggleProps(expression, seen = new Set()) {
+    if (expression === toggleProps) return true;
+    if (expression?.type !== 'Identifier') return false;
+    const binding = bindings.resolve(expression);
+    if (!binding || seen.has(binding)) return false;
+    const visited = new Set([...seen, binding]);
+    return bindings.writes(binding).some(({ value }) => refersToToggleProps(value, visited));
+  }
   const button = unique(
     within(
       module,
       toggle,
       (node) =>
         jsx(node) &&
-        literalValue(
-          properties(node.arguments[1]).get('data-app-shell-workspace-layout-toggle'),
-        ) === 'right-panel',
+        (node.arguments[1] === toggleProps ||
+          (literalValue(properties(node.arguments[1]).get('color')) === 'ghost' &&
+            literalValue(properties(node.arguments[1]).get('size')) === 'toolbar' &&
+            node.arguments[1].properties.some(
+              (property) =>
+                property.type === 'SpreadElement' && refersToToggleProps(property.argument),
+            ))),
     ),
     'native workspace toggle button',
   );

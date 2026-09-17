@@ -28,7 +28,7 @@ bun run prepare:model-spread --check --output "$HOME/Codex-Mods/Modex.app"
 bun run prepare:model-spread --output "$HOME/Codex-Mods/Modex.app"
 ```
 
-An installed Developer ID Application certificate is required for packaging. Select it with `CODEX_MODS_SIGN_IDENTITY` if necessary; see the [root README](../../README.md). The stock app is preserved and a full original-app ZIP is verified before packaging. Existing app outputs are refused. To reuse a matching backup, pass its path with `--backup`.
+An installed Developer ID Application certificate is required for packaging. Select it with `CODEX_MODS_SIGN_IDENTITY` if necessary; see the [root README](../../README.md). Preparation verifies the stock source fingerprint and signature, leaves the stock app unchanged, and creates no backup. Existing app outputs are refused.
 
 An unknown version/hash stops before producing the app. For updates, follow [REPAIR.md](REPAIR.md); changing hashes without reviewing native behavior is insufficient.
 
@@ -64,7 +64,7 @@ The isolated profile does not import authentication or settings. Double-clicking
 
 ## Development
 
-`build-mod.mjs` applies checked renderer transforms, and `*.template.*` adapt the native UI, storage, composer, and Micro interfaces. `prepare-mod.mjs` handles this mod's compatibility and backup workflow, then calls the shared packaging utilities. `verify-mod.mjs` verifies hashes, deterministic transforms, generated imports, and tests against local stock bundles.
+`build-mod.mjs` applies checked renderer transforms, and `*.template.*` adapt the native UI, storage, composer, and Micro interfaces. `prepare-mod.mjs` handles this mod's compatibility and preparation workflow, then calls the shared packaging utilities. `verify-mod.mjs` verifies hashes, deterministic transforms, generated imports, and tests against local stock bundles.
 
 `source-hooks.mjs` captures local bindings for usage banners, selection-mode reconciliation,
 experiment exposure, and Micro reasoning dispatch from their native operations. These hooks

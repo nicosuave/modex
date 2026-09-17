@@ -54,7 +54,7 @@ function ModexLocalPaneContents({task,scope,preview,allowMissingConversation}) {
   native.React.useEffect(()=>{if(!pane?.active)setOpen(false)},[pane?.active]);
   const background=agent=>{if(!agent.canInteract){native.openSubagents(scope,{hostId:host,parentConversationId:id,selectedConversationId:agent.conversationId,selectedDisplayName:agent.displayName});return}native.openBackground(scope,{backgroundAgent:agent,hostId:host,TabComponent:native.SubagentTab})};
   const subagents=()=>{native.openSubagents(scope,{hostId:host,parentConversationId:id})};
-  const pullRequest=value=>{'request'in value?native.openPullRequestRequest(scope,value):native.openPullRequest(scope,value)};
+  const pullRequest=value=>native.openPullRequestAction(scope,value);
   ModexInitializeSummary();
   const trigger=native.React.createElement(native.HeaderButton,{label:'Environment and task summary',pressed:open});
   const summary=native.React.createElement(native.Popover,{isOpen:open,onOpenChange:setOpen,trigger},native.React.createElement(native.Summary,{onOpenBackgroundAgent:background,onOpenPullRequestSidePanel:pullRequest,onOpenSubagentsPanel:subagents}));

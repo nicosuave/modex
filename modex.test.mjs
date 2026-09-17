@@ -39,8 +39,6 @@ test('prepare preserves packaging arguments and accepts selection before other f
     '/source.app',
     '--output',
     '/staging/output.app',
-    '--backup',
-    '/backup.app',
     '--identity-from',
     '/installed.app',
     '--check',
@@ -92,7 +90,7 @@ test('rejects unknown arguments and incomplete path flags', () => {
       assert.throws(() => parseArgs([command, ...suffix]), `${command} ${suffix.join(' ')}`);
     }
   }
-  for (const flag of ['--output', '--backup', '--identity-from']) {
+  for (const flag of ['--output', '--identity-from']) {
     assert.throws(() => parseArgs(['prepare', flag]));
     assert.throws(() => parseArgs(['prepare', flag, '--check']));
     assert.throws(() => parseArgs(['verify', flag, '/some.app']));
@@ -150,8 +148,6 @@ test('update accepts only preservation-oriented options', () => {
     '/Applications/Modex.app',
     '--source',
     '/Stock.app',
-    '--backup',
-    '/Original.zip',
     '--output',
     '/new/Modex.app',
   ];
@@ -167,4 +163,9 @@ test('current-source is an explicit boolean for verify and prepare', () => {
     assert.deepEqual(parseArgs([command, '--current-source']).args, ['--current-source']);
   for (const command of ['update', 'status', 'dev'])
     assert.throws(() => parseArgs([command, '--current-source']));
+});
+
+test('stock backup options are rejected', () => {
+  for (const command of ['prepare', 'update'])
+    assert.throws(() => parseArgs([command, '--backup', '/tmp/Original.zip']));
 });

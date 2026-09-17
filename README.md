@@ -46,9 +46,9 @@ bun run modex prepare --check --mods "$mods" --output "$HOME/Codex-Mods/first-bu
 bun run modex prepare --mods "$mods" --output "$HOME/Codex-Mods/first-build/Modex.app"
 ```
 
-These commands verify your selection, check the preparation inputs, then create a signed app at `~/Codex-Mods/first-build/Modex.app`. Preparation also creates and verifies a full stock-app backup beside it: `Original-26.903.71938-8576.zip`.
+These commands verify your selection, check the preparation inputs, then create a signed app at `~/Codex-Mods/first-build/Modex.app`. Preparation leaves the stock app unchanged and does not create a stock-app backup. Source fingerprint and signature checks remain part of preparation.
 
-Preparation does not install or launch the app. Output paths must be new, absolute `.app` paths outside Applications. Existing apps and backups are never overwritten. For another attempt, choose a new staging directory; to reuse a backup, pass `--backup` explicitly as shown in the update workflow below.
+Preparation does not install or launch the app. Output paths must be new, absolute `.app` paths outside Applications. Existing apps and previously created backups are preserved. For another attempt, choose a new staging directory.
 
 ## Install and open
 
@@ -80,8 +80,8 @@ replaces, waits for, quits, or launches an app. Your installed Modex stays untou
 Modex is detected in `/Applications` or `~/Applications`. If both locations contain
 it, select the identity source with `--app /Applications/Modex.app`. Use `--output`
 for a new absolute `.app` path outside Applications, `--source` for another stock
-app, `--backup` to reuse a verified stock ZIP, or `--check` for read-only preflight.
-A new stock backup is created beside the output unless `--backup` is supplied.
+app, or `--check` for read-only preflight. Builds use the stock app directly and
+leave it unchanged.
 
 Update uses the current checkout and current stock bytes, without a version or hash
 allowlist. It still verifies source signatures, patch matches, deterministic output,
@@ -103,20 +103,18 @@ bun run modex verify --mods "$mods"
 
 Always pass `--identity-from` with the **actual installed Modex path**. These examples use `~/Applications/Modex.app`, matching the installation steps above. If you installed in `/Applications`, substitute `/Applications/Modex.app` in both commands.
 
-For an update built from the same stock app, reuse the backup from the first build:
+Prepare the update in a new staging directory:
 
 ```sh
 bun run modex prepare --check --mods "$mods" \
   --identity-from "$HOME/Applications/Modex.app" \
-  --backup "$HOME/Codex-Mods/first-build/Original-26.903.71938-8576.zip" \
   --output "$HOME/Codex-Mods/update-1/Modex.app"
 bun run modex prepare --mods "$mods" \
   --identity-from "$HOME/Applications/Modex.app" \
-  --backup "$HOME/Codex-Mods/first-build/Original-26.903.71938-8576.zip" \
   --output "$HOME/Codex-Mods/update-1/Modex.app"
 ```
 
-Use a new staging directory for each build. The backup must match the current stock source exactly. When using a different supported stock build, omit `--backup` from both commands to create a new backup in the new staging directory.
+Use a new staging directory for each build. Preparation verifies the stock source directly and preserves it while creating the separate signed app.
 
 Review the reported selected, installed, and removed mods, then follow [Install and open](#install-and-open) to switch copies. `--identity-from` preserves the installed bundle ID and signing team and checks for accidental mod removal. Without it, preparation treats this as a fresh build and has no installed app to compare.
 

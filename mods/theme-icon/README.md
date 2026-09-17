@@ -46,8 +46,9 @@ bun run prepare:theme-icon --check --output "$HOME/Codex-Mods/theme-icon/Modex.a
 bun run prepare:theme-icon --output "$HOME/Codex-Mods/theme-icon/Modex.app"
 ```
 
-Use `--source` for another source path, and explicit `--backup` to verify/reuse a
-matching full original-app ZIP. Existing output apps and backups are preserved.
+Use `--source` for another source path. Preparation verifies the source fingerprint
+and signature, leaves the stock app unchanged, and creates no backup. Existing
+output apps and previously created backups are preserved.
 Packaging requires an installed Developer ID Application certificate. See the
 [root README](../../README.md) for certificate selection and stable identity rules.
 

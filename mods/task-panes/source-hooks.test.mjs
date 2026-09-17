@@ -14,6 +14,7 @@ import { files, transform } from './build-mod.mjs';
 import {
   discoverProviders,
   discoverRouting,
+  discoverLocalPage,
   patchLocalThread,
   patchTaskDrag,
 } from './source-hooks.mjs';
@@ -31,6 +32,68 @@ const input = () =>
   Object.fromEntries(
     Object.values(files).map((file) => [file, fs.readFileSync(path.join(root, file), 'utf8')]),
   );
+
+test.skipIf(!root)('pane pull-request dispatch preserves the stock discriminator and scope', () => {
+  const source = input()[files.localPage];
+  const module = parseModule(source);
+  const discriminator = module.one(
+    (node) =>
+      node.type === 'BinaryExpression' &&
+      ((node.operator === 'in' && literalValue(node.left) === 'request') ||
+        (node.operator === '===' &&
+          node.left.type === 'MemberExpression' &&
+          propertyName(node.left.property) === 'kind' &&
+          literalValue(node.right) === 'canonical')),
+    'pull-request discriminator',
+  );
+  const parameter = module.text(
+    discriminator.operator === 'in' ? discriminator.right : discriminator.left.object,
+  );
+  for (const [predicate, first, second] of [
+    [`'request' in ${parameter}`, { request: {} }, { url: 'existing' }],
+    [
+      `${parameter}.kind === 'canonical'`,
+      { kind: 'canonical', request: {} },
+      { kind: 'request', request: {} },
+    ],
+  ]) {
+    const changed = editSource(source, [
+      { start: discriminator.start, end: discriminator.end, text: predicate },
+    ]);
+    const roles = discoverLocalPage(parseModule(changed));
+    const action = parseModule(`const action = ${roles.openPullRequestAction};`);
+    const calls = action.all((node) => node.type === 'CallExpression');
+    expect(calls).toHaveLength(2);
+    const observed = [];
+    const dispatch = new Function(
+      ...calls.map((call) => action.text(call.callee)),
+      `return ${roles.openPullRequestAction};`,
+    )(
+      (...args) => observed.push(['first', ...args]),
+      (...args) => observed.push(['second', ...args]),
+    );
+    const scope = {};
+    dispatch(scope, first);
+    dispatch(scope, second);
+    expect(observed).toEqual([
+      ['first', scope, first],
+      ['second', scope, second],
+    ]);
+  }
+  expect(() =>
+    discoverLocalPage(
+      parseModule(
+        editSource(source, [
+          {
+            start: discriminator.start,
+            end: discriminator.end,
+            text: `${parameter}.kind === 'unknown'`,
+          },
+        ]),
+      ),
+    ),
+  ).toThrow('pull request action discriminator');
+});
 
 function nativeFunction(module, name, sourceModules) {
   const direct = module.ast.body.find(

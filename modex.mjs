@@ -14,13 +14,11 @@ export const HELP = `Usage: bun run modex <update|verify|prepare|status|dev> [op
 prepare options:
   --output APP                   Required new absolute staging path outside Applications
   --identity-from APP            Installed app to preserve identity and check enabled mods
-  --backup ZIP                   Explicitly verify/reuse an original-app backup
   --check                        Read-only preparation checks
 
 update options:
   --app APP                      Installed app (auto-detects /Applications or ~/Applications)
   --source APP                   Stock source (default /Applications/ChatGPT.app)
-  --backup ZIP                   Reuse a verified stock backup instead of creating one
   --output APP                   New absolute staging path (default under work/updates)
   --check                        Read-only preflight; no build
 
@@ -80,9 +78,9 @@ export function parseArgs(args) {
       continue;
     }
     const valueFlags = {
-      update: ['--app', '--source', '--backup', '--output'],
+      update: ['--app', '--source', '--output'],
       verify: ['--source', '--mods', '--dev-root'],
-      prepare: ['--source', '--mods', '--output', '--backup', '--identity-from', '--dev-root'],
+      prepare: ['--source', '--mods', '--output', '--identity-from', '--dev-root'],
       status: ['--app'],
       dev: ['--output', '--mods'],
     }[command];
