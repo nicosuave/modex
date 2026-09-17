@@ -103,3 +103,41 @@ test('native discovery rejects missing and ambiguous contracts', () => {
     discoverNativeUi(parseModule(fixture.replace("'./button-123abc.js'", "'./other-123abc.js'"))),
   ).toThrow('Button has an unexpected native module');
 });
+
+test('shared width-toggle props retain the toolbar Button instead of the viewer control', () => {
+  const shared = fixture.replace(
+    "const button = jsx.jsx(Button, {'data-app-shell-workspace-layout-toggle': 'right-panel', children: icon});",
+    `let cachedProps;
+    if (changed) cachedProps = {'data-app-shell-workspace-layout-toggle': 'right-panel', children: icon};
+    else cachedProps = memo[0];
+    const props = cachedProps;
+    const button = appearance === 'viewer'
+      ? jsx.jsx(ViewerButton, {...props})
+      : jsx.jsx(Button, {color: 'ghost', size: 'toolbar', ...props});`,
+  );
+  for (const source of [shared, renameBindings(shared)]) {
+    const module = parseModule(source);
+    const roles = discoverNativeUi(module);
+    const buttonImport = module.one(
+      (node) => node.type === 'ImportSpecifier' && node.imported.name === 'button',
+      'button import',
+    );
+    expect(roles.Button).toBe(buttonImport.local.name);
+  }
+  expect(() =>
+    discoverNativeUi(parseModule(shared.replace('...props});', '...unrelated});'))),
+  ).toThrow('native workspace toggle button');
+  expect(() =>
+    discoverNativeUi(parseModule(shared.replace("size: 'toolbar'", "size: 'unknown'"))),
+  ).toThrow('native workspace toggle button');
+  expect(() =>
+    discoverNativeUi(
+      parseModule(
+        shared.replace(
+          'jsx.jsx(ViewerButton, {...props})',
+          "jsx.jsx(ViewerButton, {color: 'ghost', size: 'toolbar', ...props})",
+        ),
+      ),
+    ),
+  ).toThrow('native workspace toggle button');
+});

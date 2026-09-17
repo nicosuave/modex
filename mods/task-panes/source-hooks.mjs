@@ -447,8 +447,10 @@ export function discoverLocalPage(module) {
     page,
     (node) =>
       node.type === 'BinaryExpression' &&
-      node.operator === 'in' &&
-      literalValue(node.left) === 'request',
+      ((node.operator === 'in' && literalValue(node.left) === 'request') ||
+        (node.operator === '===' &&
+          member(node.left, 'kind') &&
+          literalValue(node.right) === 'canonical')),
     'pull request action discriminator',
   );
   const pullRequestBranch = module.ancestor(pullRequest, (node) => node.type === 'IfStatement');
@@ -465,6 +467,26 @@ export function discoverLocalPage(module) {
     ),
     'existing pull request action',
   );
+  const requestParameter = pullRequestHandler.params[0];
+  const discriminatorInput =
+    pullRequest.operator === 'in' ? pullRequest.right : pullRequest.left.object;
+  if (
+    requestParameter?.type !== 'Identifier' ||
+    pullRequestHandler.params.length !== 1 ||
+    code(discriminatorInput) !== code(requestParameter) ||
+    requestCall.callee.type !== 'Identifier' ||
+    otherCall.callee.type !== 'Identifier' ||
+    requestCall.arguments.length !== 2 ||
+    otherCall.arguments.length !== 2 ||
+    requestCall.arguments[0].type !== 'Identifier' ||
+    code(requestCall.arguments[0]) !== code(otherCall.arguments[0]) ||
+    code(requestCall.arguments[1]) !== code(requestParameter) ||
+    code(otherCall.arguments[1]) !== code(requestParameter)
+  )
+    throw Error('Unsupported pull request action arguments');
+  // Rebuild only the validated dispatch, keeping stock's predicate and native
+  // callees without capturing unrelated variables from the page's closure.
+  const pullRequestAction = `(${code(requestCall.arguments[0])},${code(requestParameter)})=>{if(${code(pullRequest)}){${code(requestCall)};return}${code(otherCall)};}`;
   const pinProvider = module.ancestor(
     localThread,
     (node) => jsx(node) && has(node.arguments[1], 'value', 'children'),
@@ -509,8 +531,7 @@ export function discoverLocalPage(module) {
     openSubagents: code(subagents.callee),
     openBackground: code(background.callee),
     SubagentTab: code(properties(background.arguments[1]).get('TabComponent')),
-    openPullRequestRequest: code(requestCall.callee),
-    openPullRequest: code(otherCall.callee),
+    openPullRequestAction: pullRequestAction,
     HeaderButton: code(summaryTrigger.arguments[0]),
     Popover: code(summaryCall.arguments[0]),
     Summary: code(summaryContent.arguments[0]),

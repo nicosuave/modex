@@ -3,7 +3,7 @@
 These utilities operate on local copies of the installed macOS Codex app. They contain no Model Spread renderer transforms.
 
 - `asar.mjs`: inspect archives, read entries, validate paths, and repack overlays with per-entry and archive integrity. It preserves unpacked entries and refuses source/output overlap.
-- `prepare-mod.mjs`: shared exact bundle/resource compatibility checks, verified full-app backups, and staged preparation. Mod entrypoints supply their own identity, manifest, and builder. Legacy bare bundle filenames and nested ASAR paths are supported.
+- `prepare-mod.mjs`: shared exact bundle/resource compatibility checks, source fingerprint/signature validation, and staged preparation. It reads the stock app directly without changing it or creating backups. Mod entrypoints supply their own identity, manifest, and builder. Legacy bare bundle filenames and nested ASAR paths are supported.
 - `package-app.mjs`: validate a stock archive/signature, copy it to a new staging path outside Applications, apply an overlay, update its integrity metadata, and sign it. Existing outputs are refused. It never launches or installs the app.
 - `sign-app.mjs`: apply an explicit mod name/bundle ID and normal-profile environment, retain the native icon, sanitize vendor-only identity entitlements, and sign with a locally available Developer ID Application identity. It verifies the result and rejects per-build cdhash requirements.
 
@@ -18,7 +18,7 @@ bun lib/package-app.mjs \
   --bundle-id local.codex.example-mod
 ```
 
-Use `--inspect` for read-only input validation. `--unsigned` is for inspecting an intentionally invalidated staged bundle, not for normal use. Mod-specific entrypoints should check exact source compatibility and verify a backup first; this generic utility does not know a mod's supported source hashes.
+Use `--inspect` for read-only input validation. `--unsigned` is for inspecting an intentionally invalidated staged bundle, not for normal use. Mod-specific entrypoints should check exact source compatibility first; this generic utility does not know a mod's supported source hashes.
 
 ## Signing
 

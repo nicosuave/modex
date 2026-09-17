@@ -7,7 +7,7 @@ When asked to install or adapt Modex, carry the task through verification and cr
 Before packaging an update, compare the intended identity against the user's installed mod, not only the stock source or selected mod's defaults. Changing enabled mods does not justify changing the installed app's bundle ID or signing team. For an intentionally separate app, explain its separate macOS permission grants before adoption. Read [permission continuity](REPAIR.md#macos-permission-continuity) when choosing an identity or diagnosing native access.
 
 1. Read the scripts, inspect the installed source app, and confirm macOS/Bun. Install dependencies from the lockfile and run the selected mod's verifier before packaging.
-2. Run preparation with `--check`, a supported source, and a new absolute output path outside Applications; then prepare the full copy. Verify the original-app backup before reuse through explicit `--backup`. Preserve existing outputs and choose a new descriptive path for another attempt.
+2. Run preparation with `--check`, a supported source, and a new absolute output path outside Applications; then prepare the full copy. Verify the source fingerprint and signature while leaving the stock app unchanged; do not create stock-app backups. Preserve existing outputs and previously created backups, and choose a new descriptive path for another attempt.
 3. Create one directly signed Modex.app and pin that actual app in the Dock, never a separate launcher. Keep the existing mod bundle ID and Developer ID team across updates, including display-name changes. Verify the certificate designated requirement and normal-profile Launch Services environment. Never fall back to ad-hoc signing.
 4. Install the staged app in ~/Applications when requested. Preserve the installed original, existing copies, user files, settings, and authentication. Do not modify or stop an app hosting the user's active conversation automatically. Preserve a running old copy until the user can close it, and report when the new app will take effect.
 5. Launch when requested or implied. Respect the user's profile choice; default verification launches to an isolated persistent profile. Before sharing a profile, ensure other copies are quit. Do not run pointer/knob tests during the user's manual testing.
@@ -25,8 +25,8 @@ Before packaging an update, compare the intended identity against the user's ins
 
 ## Acceptance and reporting
 
-Run the relevant tests, deterministic verifier, preparation dry run, and full packaging for installation/adaptation work. Verify original and copied app signatures, the stable certificate requirement, and profile environment. Determinism means repeatable patch output; signatures and ZIP timestamps need not be byte-identical. Syntax/import checks do not establish native export semantics.
+Run the relevant tests, deterministic verifier, preparation dry run, and full packaging for installation/adaptation work. Verify original and copied app signatures, the stable certificate requirement, and profile environment. Determinism means repeatable patch output; signatures need not be byte-identical. Syntax/import checks do not establish native export semantics.
 
 For a launched copy, check startup/renderer errors and the mod's scoped behavioral acceptance cases. Mark hardware/account-dependent checks unverified when unavailable; never infer hardware success from unit tests or an enabled permission switch.
 
-Report app/backup paths, accepted source version, repair evidence, passed checks, and remaining launch/runtime limitations. Maintain an ignored local worklog when work spans phases.
+Report app paths, accepted source version, repair evidence, passed checks, and remaining launch/runtime limitations. Maintain an ignored local worklog when work spans phases.

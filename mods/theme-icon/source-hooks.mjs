@@ -3,6 +3,7 @@ import {
   literalValue as literal,
   unique as one,
   editSource,
+  lexicalBindings,
 } from '../../lib/source-contract.mjs';
 
 const id = String.raw`[$A-Z_a-z][$\w]*`;
@@ -263,9 +264,16 @@ export function settingsBindings(source) {
 export function patchThemeSettings(source) {
   if (source.includes('ThemeIconSettings')) throw Error('Theme Icon settings already patched');
   const b = settingsBindings(source);
+  const roles = ['Row', 'Dropdown', 'DropdownButton', 'Menu', 'CheckIcon'];
+  const bindings = lexicalBindings(b.ast);
+  for (const role of roles)
+    if (!bindings.moduleBinding(b[role]))
+      throw Error(`Theme Icon: ${role} is not a native module binding`);
   const [store, preference] = b.preferenceWrite.arguments.map(b.ast.text);
-  const options = `React:ThemeIconReact(),Row:${b.Row},Dropdown:${b.Dropdown},DropdownButton:${b.DropdownButton},Menu:${b.Menu},CheckIcon:${b.CheckIcon},previews:${b.previews},enabled:${b.preferenceVariable}===\`codex-system\`,onEnable:()=>${b.ast.text(b.preferenceWrite.callee)}(${store},${preference},\`codex-system\`)`;
-  // A dedicated import avoids a native module alias being shadowed by row locals.
+  const options = `React:ThemeIconReact(),${roles.map((role) => `${role}:ThemeIconNative.${role}`).join(',')},previews:${b.previews},enabled:${b.preferenceVariable}===\`codex-system\`,onEnable:()=>${b.ast.text(b.preferenceWrite.callee)}(${store},${preference},\`codex-system\`)`;
+  // Resolve native components at module scope, outside the Dock row's locals.
+  // Getters retain lazy initialization instead of capturing uninitialized values.
+  const native = `const ThemeIconNative={${roles.map((role) => `get ${role}(){return ${b[role]}}`).join(',')}};`;
   return (
     `import {${b.ReactExport} as ThemeIconReact} from ${JSON.stringify(b.ReactSource)};import {Settings as ThemeIconSettings} from "./theme-icon-runtime.mjs";` +
     replaceRanges(source, [
@@ -274,7 +282,9 @@ export function patchThemeSettings(source) {
         end: b.result.end,
         value: `(0,${b.jsx}.jsxs)(${b.jsx}.Fragment,{children:[${b.ast.text(b.result)},(0,${b.jsx}.jsx)(ThemeIconSettings,{${options}})]})`,
       },
-    ])
+    ]) +
+    '\n' +
+    native
   );
 }
 

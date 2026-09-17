@@ -8,7 +8,7 @@ Read this when verification, packaging, signing, permissions, or runtime behavio
 - Source signature/integrity failure: confirm the source is pristine stock, not a modified copy. Do not bless damaged input or disable checks.
 - Version/hash failure: inspect the new stock implementation and follow the affected mod's adaptation guide. Changing manifest hashes alone does not establish compatibility.
 - Missing/duplicate anchor, syntax/import/test failure: inspect the owning transform or adapter, surrounding implementation, and callers. Minified names have no stable meaning across builds.
-- Existing output/backup: preserve it and choose a new output. Reuse backups only through explicit helper verification.
+- Existing output: preserve it and choose a new output. Builds read the stock app directly without changing it or creating a backup; preserve any previously created backups.
 - Packaging/signing failure: inspect subprocess errors, destination permissions, disk space, certificate availability, and entitlements. Preserve nested vendor signatures and identity-entitlement removal. Retain certificate signing; do not disable Electron fuses, SIP, or Gatekeeper.
 - Input Monitoring denial despite an enabled switch: inspect the actual app's bundle ID, signing team, and designated requirement, and whether the macOS grant matches. Authorize the modded app itself, not stock or an old launcher. Preserve bundle ID and team across updates and display-name changes. Never reset unrelated app permissions.
 - Runtime failure: inspect the separate copy's logs/renderer errors and native import exports. Use an isolated profile before blaming user settings. Do not reset profiles or copy authentication files as a fix.

@@ -52,7 +52,7 @@ bun run modex prepare --mods model-spread,theme-icon,task-panes \
 
 Use the actual installed app path for `--identity-from`; omit it only for a first installation. Keep the same complete `--mods` selection in every command. Use `--mods task-panes` if you intentionally want only this UI mod. App-tools authentication is included automatically in either selection.
 
-Preparation creates a separate signed staging app; it does not install, launch, overwrite, or quit an app. Follow the root [installation instructions](../../README.md#install-and-open) and preserve the installed app's bundle ID and signing team when updating. Use a new output path for another attempt and `--backup` explicitly to reuse a verified stock backup.
+Preparation creates a separate signed staging app; it does not install, launch, overwrite, or quit an app. It verifies the source fingerprint and signature, leaves the stock app unchanged, and creates no backup. Follow the root [installation instructions](../../README.md#install-and-open) and preserve the installed app's bundle ID and signing team when updating. Use a new output path for another attempt.
 
 For external development modules, follow the [development guide](../development/README.md) with the same `--mods model-spread,theme-icon,task-panes` selection for `dev`, `verify`, and `prepare`. Task Panes runtime changes need a window reload or restart; installed hook changes need a newly verified, signed package. The watcher never reloads or quits the app.
 

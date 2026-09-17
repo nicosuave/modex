@@ -8,7 +8,6 @@ import { actualBundles } from '../../lib/current-source.mjs';
 export const HELP = `Usage: bun mods/combined/prepare-mod.mjs --output /absolute/new/Modex.app [options]
   --source APP          Stock app (default /Applications/ChatGPT.app)
   --identity-from APP   Preserve installed mod bundle ID and signing requirement
-  --backup ZIP          Explicitly validate/reuse an original-app backup
   --check               Read-only validation; no packaging
   --help                Show help
 Builds the selected mods into one signed app, outside Applications.

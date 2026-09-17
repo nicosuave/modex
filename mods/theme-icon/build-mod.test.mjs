@@ -10,7 +10,7 @@ import {
   patchThemeMain,
   patchThemeProvider,
 } from './source-hooks.mjs';
-import { parseModule, literalValue } from '../../lib/source-contract.mjs';
+import { parseModule, literalValue, editSource } from '../../lib/source-contract.mjs';
 import { renameBindings } from '../../lib/source-contract.test-support.mjs';
 
 test('unknown source structures fail closed', () => {
@@ -117,6 +117,14 @@ function verifyDock(original) {
     [b.Menu, Menu],
   ])
     values[name] = value;
+  const nativeBridge = stock.one(
+    (node) => node.type === 'VariableDeclarator' && node.id.name === 'ThemeIconNative',
+    'native settings bridge',
+  );
+  values.ThemeIconNative = new Function(
+    ...Object.keys(values),
+    `return ${stock.text(nativeBridge.init)};`,
+  )(...Object.values(values));
   values.ThemeIconReact = () => React;
   values[b.preferenceRead.arguments[0].object.name] = { dockIconPreference: preference };
   values[b.preferenceRead.callee.name] = () => 'app-default';
@@ -185,6 +193,28 @@ test.skipIf(!process.env.THEME_ICON_BUNDLES)(
     const manifest = JSON.parse(fs.readFileSync(new URL('./compatibility.json', import.meta.url)));
     const name = Object.keys(manifest.files).find((name) => name.includes('/general-settings-'));
     verifyDock(fs.readFileSync(path.join(process.env.THEME_ICON_BUNDLES, name), 'utf8'));
+  },
+  120000,
+);
+
+test.skipIf(!process.env.THEME_ICON_BUNDLES)(
+  'Dock row locals cannot shadow native controls from another settings row',
+  () => {
+    const manifest = JSON.parse(fs.readFileSync(new URL('./compatibility.json', import.meta.url)));
+    const name = Object.keys(manifest.files).find((name) => name.includes('/general-settings-'));
+    const source = renameBindings(
+      fs.readFileSync(path.join(process.env.THEME_ICON_BUNDLES, name), 'utf8'),
+    );
+    const bindings = settingsBindings(source);
+    const controls = ['Dropdown', 'DropdownButton', 'Menu', 'CheckIcon'];
+    const shadowed = editSource(source, [
+      {
+        start: bindings.row.body.start + 1,
+        end: bindings.row.body.start + 1,
+        text: `let ${controls.map((role) => bindings[role]).join(',')};`,
+      },
+    ]);
+    verifyDock(shadowed);
   },
   120000,
 );
