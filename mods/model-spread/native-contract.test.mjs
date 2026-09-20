@@ -95,7 +95,29 @@ function menu({triggerButton,contentVariant,contentMaxHeight,onContentPointerEnt
 export{setup,dialog,body,section,heading,footer,title,description,button,settings,menu,items};
 `;
 const row = `let compiler,setup=once(()=>{compiler=runtime();});function selectable({ariaCurrent,compactSecondLine,hasInteractiveContent,secondLineRightText,titleAdornment,onSelect}){compiler.c(1);}export{setup,selectable};`;
+const movedRow = `let rowCompiler,rowSetup=once(()=>{rowCompiler=runtime();});function selectable({ariaCurrent,compactSecondLine,hasInteractiveContent,secondLineRightText,titleAdornment,onSelect}){rowCompiler.c(1);}export{rowSetup,selectable};`;
 const rewind = `let icon,setup=once(()=>{icon=createIcon('Rewind',[]);});export{icon,setup};`;
+const sharedDialog = `
+let titleName,descriptionName,rawTitle,rawDescription,titlePrimitive,descriptionPrimitive;
+let setup=once(()=>{titleName='DialogTitle';descriptionName='DialogDescription';rawTitle=forwardRef(()=>{});rawDescription=forwardRef(()=>{});rawTitle.displayName=titleName;rawDescription.displayName=descriptionName;titlePrimitive=rawTitle;descriptionPrimitive=rawDescription;});
+export{titlePrimitive,descriptionPrimitive,setup};
+`;
+const splitUi = `
+import {titlePrimitive,descriptionPrimitive} from './shared.js';
+let compiler, items;
+let setup=once(()=>{compiler=runtime();items={Trigger:trigger};});
+function dialog({triggerContent,triggerAsChild,dialogCloseLabel,contentProps}){compiler.c(1);}
+function body(props){compiler.c(1);return runtime.jsx('div',{name:'DialogBody'});}
+function section(props){compiler.c(1);return runtime.jsx('div',{name:'DialogSection'});}
+function heading(props){compiler.c(1);return runtime.jsx('div',{name:'DialogHeader'});}
+function footer(props){compiler.c(1);return runtime.jsx('div',{name:'DialogFooter'});}
+function title(props){compiler.c(1);return runtime.jsx(titlePrimitive,{...props});}
+function description(props){compiler.c(1);return runtime.jsx(descriptionPrimitive,{...props});}
+function button(props){compiler.c(1);return props;}
+function settings({contentClassName,chevronClassName,color}){compiler.c(1);return runtime.jsx(button,{size:'toolbar',color});}
+function menu({triggerButton,contentVariant,contentMaxHeight,onContentPointerEnter}){compiler.c(1);return runtime.jsx(items.Trigger,{});}
+export{setup,dialog,body,section,heading,footer,title,description,button,settings,menu,items};
+`;
 
 test('all native UI roles and their lazy owners survive alpha renaming', () => {
   const initial = 'initial.js',
@@ -131,4 +153,45 @@ test('all native UI roles and their lazy owners survive alpha renaming', () => {
   expect(native.match(/initializeNative\d+\(\);/g)).toHaveLength(1);
   expect(original.primaryExports).toContain('selectable as ModelSpreadSelectableRow');
   expect(renamed.primaryExports).not.toBe(original.primaryExports);
+});
+
+test('dialog wrappers follow primitives split into a shared stock module', () => {
+  const initial = 'initial.js',
+    primary = 'primary.js';
+  const build = (rename) =>
+    renderNativeAdapters(
+      { [initial]: rename(splitUi + persistence), [primary]: rename(row) },
+      {
+        initial,
+        primary,
+        sourceModules: {
+          names: ['rewind-any.js', 'shared.js'],
+          read: (name) => rename(name === 'shared.js' ? sharedDialog : rewind),
+        },
+      },
+    );
+  const original = build((source) => source),
+    renamed = build(renameBindings);
+  expect(renamed.files).toEqual(original.files);
+  expect(original.files['model-spread-native.mjs']).toContain('{title as Title}');
+  expect(original.files['model-spread-native.mjs']).toContain('{description as Description}');
+});
+
+test('selectable row follows its full prop contract into the initial bundle', () => {
+  const initial = 'initial.js',
+    primary = 'primary.js';
+  const result = renderNativeAdapters(
+    { [initial]: splitUi + movedRow + persistence, [primary]: 'export {};' },
+    {
+      initial,
+      primary,
+      sourceModules: {
+        names: ['rewind-any.js', 'shared.js'],
+        read: (name) => (name === 'shared.js' ? sharedDialog : rewind),
+      },
+    },
+  );
+  expect(result.primaryExports).toBe('');
+  expect(result.files['model-spread-native.mjs']).toContain('{selectable as SelectableRow}');
+  expect(result.files['model-spread-native.mjs']).toContain('{rowSetup as initializeNative');
 });

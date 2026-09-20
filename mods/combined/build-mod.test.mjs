@@ -15,6 +15,7 @@ import { discoverHomeNormalization } from '../model-spread/source-contracts.mjs'
 import { patchThemeProvider } from '../theme-icon/source-hooks.mjs';
 import { parseModule, propertyName, unique } from '../../lib/source-contract.mjs';
 import { fixtureSourceModules, renameBindings } from '../../lib/source-contract.test-support.mjs';
+import { externalNames } from '../model-spread/native-test-helpers.mjs';
 const fixtureContext = () => ({
   sourceModules: fixtureSourceModules(process.env.COMBINED_BUNDLES),
 });
@@ -152,6 +153,8 @@ test.skipIf(!process.env.COMBINED_BUNDLES)(
         const bindings = Object.fromEntries(
           Object.entries(home.parameters).map(([role, name]) => [name, values[role]]),
         );
+        for (const name of externalNames(home.code))
+          if (!Object.hasOwn(bindings, name)) bindings[name] = () => false;
         const value = new Function(...Object.keys(bindings), home.code + ';return ' + home.result)(
           ...Object.values(bindings),
         );

@@ -16,7 +16,7 @@ import {
   unique,
 } from '../../lib/source-contract.mjs';
 import { fixtureSourceModules, renameBindings } from '../../lib/source-contract.test-support.mjs';
-import { inspectNativeModule, patchTaskDrag } from './source-hooks.mjs';
+import { discoverTaskDragOwner, inspectNativeModule, patchTaskDrag } from './source-hooks.mjs';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 test('panes are opt-in and canonical selection preserves existing defaults', () => {
@@ -180,34 +180,53 @@ function rendererBindings(module, functions) {
     }
   return { source, bindings };
 }
-function referenceFunction(module) {
-  return nativeFunction(
-    module,
-    (fn, within) =>
+function nativeDragContract(module) {
+  const { within } = inspectNativeModule(module);
+  const lookups = module.ast.body.filter(
+    (fn) =>
+      fn.type === 'FunctionDeclaration' &&
       within(
         fn,
         (node) => node.type === 'CallExpression' && member(node.callee, 'elementsFromPoint'),
       ).length === 1 &&
       within(fn, (node) => node.type === 'CallExpression' && member(node.callee, 'closest'))
         .length === 1,
-    'native task-reference lookup',
   );
-}
-function dragEnd(module) {
-  const lookup = referenceFunction(module);
-  const { within, one, valueOf } = inspectNativeModule(module);
   const provider = nativeFunction(
     module,
     (fn) =>
+      within(fn, (node) => member(node, 'pointerCoordinates')).length > 0 &&
       within(
         fn,
         (node) =>
           node.type === 'ObjectExpression' && has(node, 'onDragStart', 'onDragEnd', 'onDragCancel'),
       ).length === 1 &&
-      within(fn, (node) => node.type === 'CallExpression' && node.callee.name === lookup.id.name)
-        .length > 0,
+      within(
+        fn,
+        (node) =>
+          node.type === 'CallExpression' &&
+          lookups.some((lookup) => node.callee.name === lookup.id.name),
+      ).length > 0,
     'native drag provider',
   );
+  const lookup = unique(
+    lookups.filter(
+      (candidate) =>
+        within(
+          provider,
+          (node) => node.type === 'CallExpression' && node.callee.name === candidate.id.name,
+        ).length > 0,
+    ),
+    'native task-reference lookup',
+  );
+  return { lookup, provider };
+}
+function referenceFunction(module) {
+  return nativeDragContract(module).lookup;
+}
+function dragEnd(module) {
+  const { lookup, provider } = nativeDragContract(module);
+  const { within, one, valueOf } = inspectNativeModule(module);
   const callbacks = one(
     provider,
     (node) =>
@@ -229,10 +248,17 @@ function fixtureTest(name, fn) {
   );
 }
 
+function taskDragModule(fixture, patched = true) {
+  const bundles = patched ? fixture.patched : fixture.originals;
+  return discoverTaskDragOwner(
+    [files.primary, files.initial].map((file) => parseModule(bundles[file])),
+  );
+}
+
 fixtureTest(
   'tall Priority and dated rows use native task drags without changing other rows',
   (fixture) => {
-    const module = parseModule(fixture.patched[files.primary]);
+    const module = taskDragModule(fixture);
     const { within, one } = inspectNativeModule(module);
     const owner = nativeFunction(
       module,
@@ -289,7 +315,7 @@ fixtureTest(
 fixtureTest(
   'native tall-row drag payload retains local, SSH, and cloud task identity',
   (fixture) => {
-    const module = parseModule(fixture.patched[files.primary]);
+    const module = taskDragModule(fixture);
     const { within, one, valueOf } = inspectNativeModule(module);
     const wrapper = nativeFunction(
       module,
@@ -499,7 +525,7 @@ fixtureTest(
 fixtureTest(
   'actual stock drag end still inserts references, while accepted pane drops cancel reordering',
   (fixture) => {
-    const module = parseModule(fixture.patched[files.primary]);
+    const module = taskDragModule(fixture);
     const { within, one, valueOf } = inspectNativeModule(module);
     const { lookup, end, callbacks } = dragEnd(module);
     const endSource = module.text(end);
@@ -586,7 +612,7 @@ fixtureTest(
   'exact transforms reject repeated application and changed native call sites',
   (fixture) => {
     expect(() => transform(fixture.patched, fixture.context)).toThrow();
-    const module = parseModule(fixture.originals[files.primary]);
+    const module = taskDragModule(fixture, false);
     const { one, within } = inspectNativeModule(module);
     const row = nativeFunction(
       module,
@@ -605,7 +631,8 @@ fixtureTest(
       'native row role',
     );
     const target = prop(role.arguments[1], 'role');
-    const changed = editSource(fixture.originals[files.primary], [
+    const source = module.source;
+    const changed = editSource(source, [
       { start: target.start, end: target.end, text: '"unsupported-row-role"' },
     ]);
     expect(() => patchTaskDrag(parseModule(changed))).toThrow();
@@ -615,7 +642,7 @@ fixtureTest(
 fixtureTest(
   'stock reference lookup yields whole-panel hits only while the workspace accepts the task drag',
   (fixture) => {
-    const module = parseModule(fixture.patched[files.primary]);
+    const module = taskDragModule(fixture);
     const { one } = inspectNativeModule(module);
     const owner = referenceFunction(module);
     const source = module.text(owner);

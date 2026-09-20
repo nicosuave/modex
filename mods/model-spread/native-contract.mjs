@@ -56,14 +56,18 @@ const jsx = (node) =>
   ['jsx', 'jsxs'].some((name) => member(callee(node.callee), name));
 const names = (object) =>
   new Set(object.properties.filter((n) => n.type === 'Property').map((n) => propertyName(n.key)));
+function ownersByProps(module, required) {
+  return [
+    ...new Set(
+      module.nodes
+        .filter((n) => n.type === 'ObjectPattern' && required.every((key) => names(n).has(key)))
+        .map((n) => module.ancestor(n, (p) => p.type === 'FunctionDeclaration'))
+        .filter(Boolean),
+    ),
+  ];
+}
 function ownerByProps(module, required, label) {
-  const owners = new Set(
-    module.nodes
-      .filter((n) => n.type === 'ObjectPattern' && required.every((key) => names(n).has(key)))
-      .map((n) => module.ancestor(n, (p) => p.type === 'FunctionDeclaration'))
-      .filter(Boolean),
-  );
-  return unique([...owners], label);
+  return unique(ownersByProps(module, required), label);
 }
 function ownerByLabel(module, label) {
   const owners = new Set(
@@ -74,28 +78,28 @@ function ownerByLabel(module, label) {
   );
   return unique([...owners], label);
 }
+function compilerRuntimes(module, fn) {
+  return within(
+    module,
+    fn,
+    (n) =>
+      n.type === 'CallExpression' &&
+      member(callee(n.callee), 'c') &&
+      callee(n.callee).object.type === 'Identifier',
+  )
+    .map((n) => callee(n.callee).object)
+    .filter(
+      (node, i, nodes) =>
+        nodes.findIndex(
+          (other) =>
+            lexicalBindings(module).resolve(other) === lexicalBindings(module).resolve(node),
+        ) === i,
+    );
+}
 export function findInitializer(module, localName) {
   const fn = index(module).functions.find((n) => n.id.name === localName);
   if (fn) {
-    const compiler = unique(
-      within(
-        module,
-        fn,
-        (n) =>
-          n.type === 'CallExpression' &&
-          member(callee(n.callee), 'c') &&
-          callee(n.callee).object.type === 'Identifier',
-      )
-        .map((n) => callee(n.callee).object)
-        .filter(
-          (node, i, nodes) =>
-            nodes.findIndex(
-              (other) =>
-                lexicalBindings(module).resolve(other) === lexicalBindings(module).resolve(node),
-            ) === i,
-        ),
-      `${localName} compiler runtime`,
-    );
+    const compiler = unique(compilerRuntimes(module, fn), `${localName} compiler runtime`);
     return bindingInitializer(module, compiler);
   }
   return bindingInitializer(module, localName);
@@ -107,19 +111,18 @@ function imported(module, file, local) {
   if (!name) throw Error(`Native role ${local} is not exported`);
   return { file: `./${file}`, name };
 }
-function exportedWrapper(module, label) {
-  const assignment = unique(
-    module.nodes.filter(
-      (n) =>
-        n.type === 'AssignmentExpression' &&
-        member(n.left, 'displayName') &&
-        n.right.type === 'Identifier' &&
-        (index(module).assignments.get(n.right.name) ?? []).some(
-          (a) => literalValue(a.value) === label,
-        ),
-    ),
-    `${label} display name`,
+function displayNameAliases(module, label) {
+  const matches = module.nodes.filter(
+    (n) =>
+      n.type === 'AssignmentExpression' &&
+      member(n.left, 'displayName') &&
+      n.right.type === 'Identifier' &&
+      (index(module).assignments.get(n.right.name) ?? []).some(
+        (a) => literalValue(a.value) === label,
+      ),
   );
+  if (!matches.length) return null;
+  const assignment = unique(matches, `${label} display name`);
   const aliases = new Set([assignment.left.object.name]);
   let changed = true;
   while (changed) {
@@ -133,6 +136,9 @@ function exportedWrapper(module, label) {
         changed = true;
       }
   }
+  return aliases;
+}
+function wrapperForAliases(module, aliases, label, initializer) {
   return unique(
     index(module).functions.filter(
       (fn) =>
@@ -142,10 +148,36 @@ function exportedWrapper(module, label) {
           fn,
           (n) =>
             jsx(n) && n.arguments[0]?.type === 'Identifier' && aliases.has(n.arguments[0].name),
-        ).length === 1,
+        ).length === 1 &&
+        (!initializer ||
+          (compilerRuntimes(module, fn).length > 0 &&
+            findInitializer(module, fn.id.name) === initializer)),
     ),
     `${label} exported wrapper`,
   );
+}
+function exportedWrapper(module, label, sourceModules, initializer) {
+  const localAliases = displayNameAliases(module, label);
+  if (localAliases) return wrapperForAliases(module, localAliases, label, initializer);
+  if (!sourceModules)
+    throw Error(`Compatibility check failed: expected one ${label} display name; found 0`);
+  const importedAliases = new Set();
+  const dependencies = new Map();
+  for (const [local, reference] of index(module).imports) {
+    const file = reference.file.replace(/^\.\//, '');
+    if (!sourceModules.names.includes(file)) continue;
+    let dependency = dependencies.get(file);
+    if (!dependency) {
+      dependency = parseModule(sourceModules.read(file));
+      dependencies.set(file, dependency);
+    }
+    const aliases = displayNameAliases(dependency, label);
+    if (!aliases) continue;
+    const exports = index(dependency).exports;
+    if ([...aliases].some((alias) => exports.get(alias) === reference.name))
+      importedAliases.add(local);
+  }
+  return wrapperForAliases(module, importedAliases, label, initializer);
 }
 export function discoverPersistence(module) {
   const guard = ownerByLabel(module, 'Persisted atom store accessed before initialization');
@@ -269,18 +301,20 @@ export function discoverRewind(sourceModules) {
 export function renderNativeAdapters(bundles, { initial, primary, modules = {}, sourceModules }) {
   const module = modules.initial ?? parseModule(bundles[initial]);
   const primaryModule = modules.primary ?? parseModule(bundles[primary]);
+  const dialog = ownerByProps(
+    module,
+    ['triggerContent', 'triggerAsChild', 'dialogCloseLabel', 'contentProps'],
+    'native Dialog',
+  );
+  const dialogInitializer = findInitializer(module, dialog.id.name);
   const roles = {
-    Dialog: ownerByProps(
-      module,
-      ['triggerContent', 'triggerAsChild', 'dialogCloseLabel', 'contentProps'],
-      'native Dialog',
-    ),
+    Dialog: dialog,
     Body: ownerByLabel(module, 'DialogBody'),
     Section: ownerByLabel(module, 'DialogSection'),
     Heading: ownerByLabel(module, 'DialogHeader'),
     Footer: ownerByLabel(module, 'DialogFooter'),
-    Title: exportedWrapper(module, 'DialogTitle'),
-    Description: exportedWrapper(module, 'DialogDescription'),
+    Title: exportedWrapper(module, 'DialogTitle', sourceModules, dialogInitializer),
+    Description: exportedWrapper(module, 'DialogDescription', sourceModules, dialogInitializer),
     SettingsTrigger: ownerByProps(
       module,
       ['contentClassName', 'chevronClassName', 'color'],
@@ -344,19 +378,43 @@ export function renderNativeAdapters(bundles, { initial, primary, modules = {}, 
   } else {
     addInit(findInitializer(module, button));
   }
-  const selectable = ownerByProps(
-    primaryModule,
+  const selectableProps = [
+    'ariaCurrent',
+    'compactSecondLine',
+    'hasInteractiveContent',
+    'secondLineRightText',
+    'titleAdornment',
+    'onSelect',
+  ];
+  const selectableOwner = unique(
     [
-      'ariaCurrent',
-      'compactSecondLine',
-      'hasInteractiveContent',
-      'secondLineRightText',
-      'titleAdornment',
-      'onSelect',
+      ...ownersByProps(primaryModule, selectableProps).map((component) => ({
+        component,
+        module: primaryModule,
+        path: primary,
+      })),
+      ...ownersByProps(module, selectableProps).map((component) => ({
+        component,
+        module,
+        path: initial,
+      })),
     ],
     'native selectable row',
   );
-  const rowInitialize = findInitializer(primaryModule, selectable.id.name);
+  const selectable = selectableOwner.component;
+  const rowInitialize = findInitializer(selectableOwner.module, selectable.id.name);
+  let primaryExports = '';
+  if (selectableOwner.module === primaryModule) {
+    imports.push(`import {
+  initializeModelSpreadSelectableRow as initRow,
+  ModelSpreadSelectableRow as SelectableRow,
+} from ${JSON.stringify(`./${primary}`)};`);
+    initCalls.push('initRow();');
+    primaryExports = `export {${selectable.id.name} as ModelSpreadSelectableRow,${rowInitialize} as initializeModelSpreadSelectableRow};`;
+  } else {
+    addImport(imported(module, selectableOwner.path, selectable.id.name), 'SelectableRow');
+    addInitializer(imported(module, selectableOwner.path, rowInitialize));
+  }
   const rewind = discoverRewind(sourceModules);
   addImport(rewind.icon, 'Rewind');
   addImport(rewind.initialize, 'initializeRewind');
@@ -380,14 +438,13 @@ export function renderNativeAdapters(bundles, { initial, primary, modules = {}, 
     files: {
       'model-spread-native.mjs': nativeTemplate
         .replace('/*__NATIVE_IMPORTS__*/', imports.join('\n'))
-        .replace('__PRIMARY__', primary)
         .replace('/*__NATIVE_INITIALIZERS__*/', initCalls.join('\n  ')),
       'model-spread-storage.mjs': storageTemplate.replace(
         '/*__STORAGE_IMPORTS__*/',
         storageImports,
       ),
     },
-    primaryExports: `export {${selectable.id.name} as ModelSpreadSelectableRow,${rowInitialize} as initializeModelSpreadSelectableRow};`,
+    primaryExports,
     readPersisted: persistence.read,
   };
 }

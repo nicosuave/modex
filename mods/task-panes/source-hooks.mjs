@@ -973,22 +973,18 @@ export function patchTaskDrag(module) {
     ),
     'native nonsortable task wrapper',
   );
-  const referenceLookup = unique(
-    module.ast.body.filter(
-      (node) =>
-        node.type === 'FunctionDeclaration' &&
-        within(
-          node,
-          (n) =>
-            n.type === 'CallExpression' &&
-            member(n.callee, 'elementsFromPoint') &&
-            n.callee.object.type === 'Identifier' &&
-            n.callee.object.name === 'document',
-        ).length === 1 &&
-        within(node, (n) => n.type === 'CallExpression' && member(n.callee, 'closest')).length ===
-          1,
-    ),
-    'task reference drop lookup',
+  const referenceLookups = module.ast.body.filter(
+    (node) =>
+      node.type === 'FunctionDeclaration' &&
+      within(
+        node,
+        (n) =>
+          n.type === 'CallExpression' &&
+          member(n.callee, 'elementsFromPoint') &&
+          n.callee.object.type === 'Identifier' &&
+          n.callee.object.name === 'document',
+      ).length === 1 &&
+      within(node, (n) => n.type === 'CallExpression' && member(n.callee, 'closest')).length === 1,
   );
   const provider = unique(
     module.ast.body.filter(
@@ -1000,7 +996,7 @@ export function patchTaskDrag(module) {
           (n) =>
             n.type === 'CallExpression' &&
             n.callee.type === 'Identifier' &&
-            n.callee.name === referenceLookup.id.name,
+            referenceLookups.some((lookup) => n.callee.name === lookup.id.name),
         ).length > 0 &&
         within(
           node,
@@ -1009,6 +1005,19 @@ export function patchTaskDrag(module) {
         ).length === 1,
     ),
     'sidebar drag provider',
+  );
+  const referenceLookup = unique(
+    referenceLookups.filter(
+      (lookup) =>
+        within(
+          provider,
+          (node) =>
+            node.type === 'CallExpression' &&
+            node.callee.type === 'Identifier' &&
+            node.callee.name === lookup.id.name,
+        ).length > 0,
+    ),
+    'task reference drop lookup',
   );
   const providerProps = properties(
     one(
@@ -1116,43 +1125,73 @@ export function patchTaskDrag(module) {
   ];
 }
 
-export function discoverPortalFactory(module) {
-  const { one, code } = tools(module);
-  const portal = module.one(
-    (node) => node.type === 'CallExpression' && member(node.callee, 'createPortal'),
-    'native React portal',
+export function discoverTaskDragOwner(modules) {
+  return unique(
+    modules.filter(
+      (module) =>
+        module.all(
+          (node) =>
+            node.type === 'CallExpression' &&
+            member(node.callee, 'elementsFromPoint') &&
+            node.callee.object.type === 'Identifier' &&
+            node.callee.object.name === 'document',
+        ).length > 0 &&
+        module.all((node) => member(node, 'pointerCoordinates')).length > 0 &&
+        module.all((node) => node.type === 'ObjectPattern' && has(node, 'threadKey', 'children'))
+          .length > 0 &&
+        module.all(
+          (node) =>
+            node.type === 'ObjectExpression' &&
+            has(node, 'onDragStart', 'onDragEnd', 'onDragCancel'),
+        ).length > 0,
+    ),
+    'native task drag owner',
   );
-  const namespace = code(portal.callee.object);
-  const assignment = module.one(
-    (node) =>
-      node.type === 'AssignmentExpression' &&
-      node.left.type === 'Identifier' &&
-      node.left.name === namespace,
-    'ReactDOM namespace initialization',
-  );
-  const factory = one(
-    assignment.right,
-    (node) =>
-      node.type === 'CallExpression' &&
-      node.callee.type === 'Identifier' &&
-      node.arguments.length === 0,
-    'ReactDOM factory',
-  );
-  return code(factory.callee);
 }
 
-export function importedRole(module, expression, owner) {
+export function discoverPortalFactory(module) {
+  const { one, code } = tools(module);
+  const portals = module.all(
+    (node) => node.type === 'CallExpression' && member(callee(node.callee), 'createPortal'),
+  );
+  const factories = portals.map((portal) => {
+    const namespace = code(callee(portal.callee).object);
+    const assignment = module.one(
+      (node) =>
+        node.type === 'AssignmentExpression' &&
+        node.left.type === 'Identifier' &&
+        node.left.name === namespace,
+      'ReactDOM namespace initialization',
+    );
+    return code(
+      one(
+        assignment.right,
+        (node) =>
+          node.type === 'CallExpression' &&
+          node.callee.type === 'Identifier' &&
+          node.arguments.length === 0,
+        'ReactDOM factory',
+      ).callee,
+    );
+  });
+  return unique([...new Set(factories)], 'native React portal factory');
+}
+
+export function importedRole(module, expression, owners) {
   const name = expression.split('.')[0];
   const specifier = module.one(
     (node) => node.type === 'ImportSpecifier' && node.local.name === name,
     'imported native role',
   );
   const exported = unique(
-    owner.ast.body
-      .filter((node) => node.type === 'ExportNamedDeclaration')
-      .flatMap((node) => node.specifiers)
-      .filter((node) => propertyName(node.exported) === propertyName(specifier.imported)),
+    owners.flatMap(({ module: owner, path }) =>
+      owner.ast.body
+        .filter((node) => node.type === 'ExportNamedDeclaration')
+        .flatMap((node) => node.specifiers)
+        .filter((node) => propertyName(node.exported) === propertyName(specifier.imported))
+        .map((node) => ({ binding: node.local.name, module: owner, path })),
+    ),
     'native role export',
   );
-  return exported.local.name;
+  return exported;
 }
