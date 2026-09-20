@@ -74,7 +74,11 @@ function nativeRole(module, expression, stem, role) {
   // validate the owning module as well as the native call site's prop contract.
   if (declaration.type === 'ImportSpecifier') {
     const owner = module.parents.get(declaration);
-    if (!new RegExp(`^\\./${stem}-[a-f0-9]+\\.js$`).test(literalValue(owner.source)))
+    const source = literalValue(owner.source);
+    if (
+      !new RegExp(`^\\./${stem}-[a-f0-9]+\\.js$`).test(source) &&
+      !/^\.\/app-shared-[a-f0-9]+\.js$/.test(source)
+    )
       throw Error(`Compatibility check failed: ${role} has an unexpected native module`);
   }
   return expression.name;

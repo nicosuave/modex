@@ -15,9 +15,41 @@ import {
   discoverProviders,
   discoverRouting,
   discoverLocalPage,
+  discoverPortalFactory,
+  discoverTaskDragOwner,
+  importedRole,
   patchLocalThread,
   patchTaskDrag,
 } from './source-hooks.mjs';
+
+test('imported native roles resolve across their verified bundle owners', () => {
+  const consumer = parseModule("import {role as local} from './initial.js';local.HeaderButton;");
+  const primary = parseModule('const other = 1; export {other as unrelated};');
+  const initial = parseModule('const initializer = 1; export {initializer as role};');
+  expect(
+    importedRole(consumer, 'local.HeaderButton', [
+      { module: primary, path: 'primary.js' },
+      { module: initial, path: 'initial.js' },
+    ]),
+  ).toEqual({ binding: 'initializer', module: initial, path: 'initial.js' });
+});
+
+test('React portal discovery accepts sequence-wrapped namespace calls', () => {
+  const module = parseModule(
+    'let dom,other,initialize=lazy(()=>{dom=loadReactDOM();other=loadReactDOM();});function render(){return (0,dom.createPortal)(content,target);}function renderOther(){return (0,other.createPortal)(content,target);}export{initialize,render,renderOther};',
+  );
+  expect(discoverPortalFactory(module)).toBe('loadReactDOM');
+});
+
+test('task drag ownership follows the bundle containing the complete native contract', () => {
+  const unrelated = parseModule('export const value = 1;');
+  const owner = parseModule(`
+    function lookup(x,y){ return document.elementsFromPoint(x,y); }
+    function wrapper({threadKey,children}){ return children; }
+    function provider(){ state.pointerCoordinates; return {onDragStart(){},onDragEnd(){},onDragCancel(){}}; }
+  `);
+  expect(discoverTaskDragOwner([unrelated, owner])).toBe(owner);
+});
 
 const root = process.env.TASK_PANES_BUNDLES;
 const globals = (source) =>
@@ -217,9 +249,11 @@ test.skipIf(!root)(
       { start: effects[0].start, end: effects[0].end, text: 'void 0' },
     ]);
     expect(() => patchLocalThread(parseModule(missing))).toThrow('local read subscription');
-    const primary = parseModule(bundles[files.primary]);
-    const dragEdits = patchTaskDrag(primary);
-    const patched = editSource(bundles[files.primary], dragEdits);
+    const dragOwner = discoverTaskDragOwner(
+      [files.primary, files.initial].map((file) => parseModule(bundles[file])),
+    );
+    const dragEdits = patchTaskDrag(dragOwner);
+    const patched = editSource(dragOwner.source, dragEdits);
     expect(() => patchTaskDrag(parseModule(patched))).toThrow();
   },
   120000,

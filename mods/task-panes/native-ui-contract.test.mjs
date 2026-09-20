@@ -89,6 +89,19 @@ test('native roles and lazy initializers survive complete lexical renaming', () 
   }
 });
 
+test('native roles accept stock components consolidated into app-shared', () => {
+  const shared = fixture.replaceAll(
+    /'\.\/(?:button|tooltip|icons)-123abc\.js'/g,
+    "'./app-shared-123abc.js'",
+  );
+  expect(discoverNativeUi(parseModule(shared))).toMatchObject({
+    Button: 'Button',
+    Tooltip: 'Tooltip',
+    MaximizeIcon: 'Maximize',
+    RestoreIcon: 'Restore',
+  });
+});
+
 test('native discovery rejects missing and ambiguous contracts', () => {
   expect(() =>
     discoverNativeUi(parseModule(fixture.replace('tabActivatorProps', 'unknownProp'))),

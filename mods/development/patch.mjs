@@ -4,13 +4,35 @@ import { inspectDevelopment, digest } from './validation.mjs';
 import { buildRuntime, computeHookHash, sourceForMods } from './build.mjs';
 import { mainPath } from '../app-tools-auth/patch.mjs';
 import { inspectCompatibility } from '../../lib/prepare-mod.mjs';
+import { entryFor, readEntry } from '../../lib/asar.mjs';
 import { rendererModules } from './contract.mjs';
 import { parseModule, literalValue, propertyName, unique } from '../../lib/source-contract.mjs';
 const compatibility = JSON.parse(
   fs.readFileSync(new URL('./compatibility.json', import.meta.url), 'utf8'),
 );
 export const protocolPath = Object.keys(compatibility.files)[0];
+export function resolveDevelopmentProtocolPath(archive) {
+  const directory = '.vite/build';
+  const node = entryFor(archive, directory);
+  const matches = [];
+  for (const name of Object.keys(node?.files ?? {})) {
+    if (!name.endsWith('.js') || node.files[name].files) continue;
+    const candidate = `${directory}/${name}`;
+    const source = readEntry(archive, candidate).toString();
+    if (!source.includes('protocol') || !source.includes('app')) continue;
+    try {
+      transformProtocol(source);
+      matches.push(candidate);
+    } catch {}
+  }
+  return unique(matches, 'current development protocol owner');
+}
 export function readDevelopmentProtocol(source, options = {}) {
+  if (options.currentSource) {
+    const manifest = { ...compatibility, files: {} };
+    const { archive } = inspectCompatibility(source, manifest, options);
+    return readEntry(archive, resolveDevelopmentProtocolPath(archive));
+  }
   return inspectCompatibility(source, compatibility, options).bundles.get(protocolPath);
 }
 export function transformProtocol(code) {

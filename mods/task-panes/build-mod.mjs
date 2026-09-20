@@ -9,6 +9,7 @@ import {
   discoverCloudPage,
   discoverRouting,
   discoverPortalFactory,
+  discoverTaskDragOwner,
   importedRole,
   parseTaskBundles,
   patchComposerRegistry,
@@ -40,8 +41,15 @@ export function transform(bundles, { sourceModules } = {}) {
   const local = discoverLocalPage(modules.localPage),
     cloud = discoverCloudPage(modules.cloudPage);
   const routing = discoverRouting(modules.initial, sourceModules);
-  const headerBinding = importedRole(modules.localPage, local.HeaderButton, modules.primary);
-  const summaryInit = discoverInitializer(modules.primary, headerBinding);
+  const headerOwner = importedRole(modules.localPage, local.HeaderButton, [
+    { module: modules.primary, path: files.primary },
+    { module: modules.initial, path: files.initial },
+  ]);
+  const summaryInit = discoverInitializer(headerOwner.module, headerOwner.binding);
+  const summaryExport = `export {${summaryInit} as ModexInitializeSummary};`;
+  const summaryImport = `import {ModexInitializeSummary} from ${JSON.stringify(`./${path.posix.basename(headerOwner.path)}`)};`;
+  const dragOwner = discoverTaskDragOwner([modules.primary, modules.initial]);
+  const dragEdits = patchTaskDrag(dragOwner);
   const { initialize: providerInit, routeEdits, ...providerRoles } = providers;
   const { initialize: uiInit, ...uiRoles } = ui;
   const { edits: cloudEdits, ...cloudRoles } = cloud;
@@ -52,24 +60,34 @@ export function transform(bundles, { sourceModules } = {}) {
     initialize: `()=>{${initializers.map((name) => `${name}();`).join('')}}`,
   });
   const runtimeImport = 'import * as TaskPanesRuntime from "./task-panes-runtime.mjs";';
+  const dragImport = 'import {drag as TaskPanesDrag} from "./task-panes-drag.mjs";';
   const output = { ...bundles };
   output[files.initial] =
     runtimeImport +
     'import * as TaskPanesRenderer from "./task-panes-renderer.mjs";' +
-    editSource(bundles[files.initial], [...routeEdits, ...patchComposerRegistry(modules.initial)]) +
+    (dragOwner === modules.initial ? dragImport : '') +
+    editSource(bundles[files.initial], [
+      ...routeEdits,
+      ...patchComposerRegistry(modules.initial),
+      ...(dragOwner === modules.initial ? dragEdits : []),
+    ]) +
     '\n' +
     roleObject +
     providerAdapter +
     `export const ModexPaneRouting={${Object.entries(routing)
       .map(([key, value]) => `${key}:${value}`)
-      .join(',')}};export {${discoverPortalFactory(modules.initial)} as ModexReactDOM};`;
+      .join(',')}};export {${discoverPortalFactory(modules.initial)} as ModexReactDOM};` +
+    (headerOwner.module === modules.initial ? summaryExport : '');
   output[files.primary] =
-    'import {drag as TaskPanesDrag} from "./task-panes-drag.mjs";import {ModexPaneRouting} from "./app-initial-a9514281e192.js";' +
-    editSource(bundles[files.primary], patchTaskDrag(modules.primary)) +
-    `\nexport {${summaryInit} as ModexInitializeSummary};`;
+    (dragOwner === modules.primary
+      ? dragImport + 'import {ModexPaneRouting} from "./app-initial-a9514281e192.js";'
+      : '') +
+    editSource(bundles[files.primary], dragOwner === modules.primary ? dragEdits : []) +
+    (headerOwner.module === modules.primary ? `\n${summaryExport}` : '');
   output[files.localPage] =
     runtimeImport +
-    'import {ModexPaneProviders,ModexReactDOM as modexReactDOM} from "./app-initial-a9514281e192.js";import {ModexInitializeSummary} from "./app-primary-defe25a79fce.js";' +
+    'import {ModexPaneProviders,ModexReactDOM as modexReactDOM} from "./app-initial-a9514281e192.js";' +
+    summaryImport +
     bundles[files.localPage] +
     '\n' +
     nativeRoles('ModexLocalNative', local) +

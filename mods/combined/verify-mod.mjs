@@ -52,12 +52,15 @@ export async function main(args = process.argv.slice(2), { mods } = {}) {
       Object.entries(output).map(([name, content]) => [name, Buffer.from(content)]),
     );
     repairOverlay(source, replacements, { currentSource });
-    const { applyDevelopment, readDevelopmentProtocol, protocolPath } =
-      await import('../development/patch.mjs');
+    const {
+      applyDevelopment,
+      readDevelopmentProtocol,
+      protocolPath,
+      resolveDevelopmentProtocolPath,
+    } = await import('../development/patch.mjs');
     const { mainPath } = await import('../app-tools-auth/patch.mjs');
-    const devPaths = currentSource
-      ? resolveBundlePaths(archive, [mainPath, protocolPath])
-      : new Map();
+    const devPaths = currentSource ? resolveBundlePaths(archive, [mainPath]) : new Map();
+    if (currentSource) devPaths.set(protocolPath, resolveDevelopmentProtocolPath(archive));
     const devReplacements = new Map(
       Object.entries(canonicalBundles(Object.fromEntries(replacements), devPaths)).map(
         ([name, value]) => [name, Buffer.from(value)],

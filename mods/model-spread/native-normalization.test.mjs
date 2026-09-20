@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { discoverHomeNormalization } from './source-contracts.mjs';
-import { bundle, evaluate, nativeFixtures } from './native-test-helpers.mjs';
+import { bundle, evaluate, externalNames, nativeFixtures } from './native-test-helpers.mjs';
 
 const fixtures = nativeFixtures();
 
@@ -40,6 +40,11 @@ for (const fixture of fixtures) {
             return [name, values[role]];
           }),
         );
+        // Compiler memoization and experiment helpers are implementation details
+        // of the captured stock block. Give them inert callable bindings so this
+        // behavioral test remains focused on preset coercion across bundler churn.
+        for (const name of externalNames(contract.code))
+          if (!Object.hasOwn(bindings, name)) bindings[name] = () => false;
         return evaluate(`${contract.code};return ${contract.result};`, bindings);
       }
       const custom = {

@@ -222,12 +222,17 @@ export function settingsBindings(source) {
         (node) =>
           reactNamespaces.has(node.left.name) &&
           node.right.type === 'CallExpression' &&
-          node.right.arguments.length === 2 &&
-          literal(node.right.arguments[1]) === 1 &&
-          node.right.arguments[0].type === 'CallExpression' &&
-          node.right.arguments[0].arguments.length === 0,
+          ((node.right.arguments.length === 0 && node.right.callee.type === 'Identifier') ||
+            (node.right.arguments.length === 2 &&
+              literal(node.right.arguments[1]) === 1 &&
+              node.right.arguments[0].type === 'CallExpression' &&
+              node.right.arguments[0].arguments.length === 0)),
       )
-      .map((node) => node.right.arguments[0].callee.name),
+      .map((node) =>
+        node.right.arguments.length === 0
+          ? node.right.callee.name
+          : node.right.arguments[0].callee.name,
+      ),
   );
   const loaderName = one([...reactLoaders], 'native React namespace initialization');
   const reactImport = one(
